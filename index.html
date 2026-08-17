@@ -875,7 +875,7 @@ let usuarioAtualId = null;
 
 function abrirIndexedDB(){
   return new Promise((resolve, reject)=>{
-    const req = indexedDB.open("equibr_offline", 1);
+    const req = indexedDB.open("equibr_offline", 2);
     req.onupgradeneeded = (e)=>{
       const db = e.target.result;
       TABELAS_OFFLINE.forEach(t=>{
@@ -890,31 +890,42 @@ function abrirIndexedDB(){
 }
 function idbPut(store, obj){
   return new Promise((resolve)=>{
-    const tx = idbDB.transaction(store, "readwrite");
-    tx.objectStore(store).put(obj);
-    tx.oncomplete = ()=>resolve();
+    try{
+      const tx = idbDB.transaction(store, "readwrite");
+      tx.objectStore(store).put(obj);
+      tx.oncomplete = ()=>resolve();
+      tx.onerror = ()=>resolve();
+    } catch(e){ resolve(); }
   });
 }
 function idbDelete(store, id){
   return new Promise((resolve)=>{
-    const tx = idbDB.transaction(store, "readwrite");
-    tx.objectStore(store).delete(id);
-    tx.oncomplete = ()=>resolve();
+    try{
+      const tx = idbDB.transaction(store, "readwrite");
+      tx.objectStore(store).delete(id);
+      tx.oncomplete = ()=>resolve();
+      tx.onerror = ()=>resolve();
+    } catch(e){ resolve(); }
   });
 }
 function idbGetAll(store){
   return new Promise((resolve)=>{
-    const tx = idbDB.transaction(store, "readonly");
-    const req = tx.objectStore(store).getAll();
-    req.onsuccess = ()=>resolve(req.result||[]);
-    req.onerror = ()=>resolve([]);
+    try{
+      const tx = idbDB.transaction(store, "readonly");
+      const req = tx.objectStore(store).getAll();
+      req.onsuccess = ()=>resolve(req.result||[]);
+      req.onerror = ()=>resolve([]);
+    } catch(e){ resolve([]); }
   });
 }
 function idbClear(store){
   return new Promise((resolve)=>{
-    const tx = idbDB.transaction(store, "readwrite");
-    tx.objectStore(store).clear();
-    tx.oncomplete = ()=>resolve();
+    try{
+      const tx = idbDB.transaction(store, "readwrite");
+      tx.objectStore(store).clear();
+      tx.oncomplete = ()=>resolve();
+      tx.onerror = ()=>resolve();
+    } catch(e){ resolve(); }
   });
 }
 
@@ -994,10 +1005,12 @@ async function offlineInsert(tabela, payload){
 }
 async function offlineUpdate(tabela, id, payloadParcial){
   const existente = await new Promise(res=>{
-    const tx = idbDB.transaction(tabela, "readonly");
-    const req = tx.objectStore(tabela).get(id);
-    req.onsuccess = ()=>res(req.result);
-    req.onerror = ()=>res(null);
+    try{
+      const tx = idbDB.transaction(tabela, "readonly");
+      const req = tx.objectStore(tabela).get(id);
+      req.onsuccess = ()=>res(req.result);
+      req.onerror = ()=>res(null);
+    } catch(e){ res(null); }
   });
   const atualizado = Object.assign({}, existente||{id:id}, payloadParcial);
   await idbPut(tabela, atualizado);
@@ -3600,15 +3613,12 @@ async function fazerLogin(){
         alert("Conta criada! Se a confirmação por e-mail estiver ativada no Supabase, verifique sua caixa de entrada antes de entrar.");
         return;
       }
+      // sessão criada: o listener onAuthStateChange (SIGNED_IN) assume o carregamento e a troca de tela
     } else {
       const { data, error } = await supabaseClient.auth.signInWithPassword({ email:email, password:senha });
       if(error){ alert("Erro ao entrar: "+error.message); return; }
-      await carregarPerfilUsuario(data.user.id);
+      // sessão criada: o listener onAuthStateChange (SIGNED_IN) assume o carregamento e a troca de tela
     }
-    await carregarDadosIniciais();
-    estado.pilha = ["dashboard"];
-    setNavAtivo("dashboard");
-    setView("dashboard");
   } finally {
     btn.disabled = false;
     btn.textContent = estado.authTab==="criar" ? "Criar conta" : "Entrar";
@@ -3629,10 +3639,12 @@ async function carregarPerfilUsuario(userId){
   } catch(e){
     if(idbDB){
       const cache = await new Promise(res=>{
-        const tx = idbDB.transaction("profiles", "readonly");
-        const req = tx.objectStore("profiles").get(userId);
-        req.onsuccess = ()=>res(req.result);
-        req.onerror = ()=>res(null);
+        try{
+          const tx = idbDB.transaction("profiles", "readonly");
+          const req = tx.objectStore("profiles").get(userId);
+          req.onsuccess = ()=>res(req.result);
+          req.onerror = ()=>res(null);
+        } catch(e){ res(null); }
       });
       if(cache){
         veterinario.nome = cache.nome||""; veterinario.email = cache.email||""; veterinario.crmv = cache.crmv||""; veterinario.endereco = cache.endereco||"";
@@ -3828,6 +3840,11 @@ supabaseClient.auth.onAuthStateChange((event, session)=>{
       estado.pilha = ["dashboard"];
       setNavAtivo("dashboard");
       setView("dashboard");
+    }).catch(e=>{
+      console.error("Erro ao carregar dados após login:", e);
+      estado.pilha = ["dashboard"];
+      setNavAtivo("dashboard");
+      setView("dashboard");
     });
   }
 });
@@ -3835,30 +3852,38 @@ supabaseClient.auth.onAuthStateChange((event, session)=>{
 (async function iniciarApp(){
   await abrirIndexedDB();
   atualizarIndicadorSync();
+  let session = null;
   try{
-    const { data:{ session } } = await supabaseClient.auth.getSession();
-    if(session){
-      usuarioAtualId = session.user.id;
+    const resultado = await supabaseClient.auth.getSession();
+    session = resultado.data.session;
+  } catch(e){ /* provavelmente offline na primeira checagem de sessão */ }
+  if(session){
+    usuarioAtualId = session.user.id;
+    try{
       await carregarPerfilUsuario(session.user.id);
       await carregarDadosIniciais();
-      estado.pilha = ["dashboard"];
-      setNavAtivo("dashboard");
-      setView("dashboard");
-      tentarSincronizar();
-      return;
+    } catch(e){
+      console.error("Sessão válida, mas houve erro ao carregar dados:", e);
     }
-  } catch(e){ /* provavelmente offline na primeira checagem de sessão */ }
+    estado.pilha = ["dashboard"];
+    setNavAtivo("dashboard");
+    setView("dashboard");
+    tentarSincronizar();
+    return;
+  }
   const sessaoOffline = await new Promise(res=>{
-    const tx = idbDB.transaction("profiles", "readonly");
-    const req = tx.objectStore("profiles").getAll();
-    req.onsuccess = ()=>res(req.result && req.result[0]);
-    req.onerror = ()=>res(null);
+    try{
+      const tx = idbDB.transaction("profiles", "readonly");
+      const req = tx.objectStore("profiles").getAll();
+      req.onsuccess = ()=>res(req.result && req.result[0]);
+      req.onerror = ()=>res(null);
+    } catch(e){ res(null); }
   });
   if(sessaoOffline && !navigator.onLine){
     usuarioAtualId = sessaoOffline.id;
     veterinario.nome = sessaoOffline.nome||""; veterinario.email = sessaoOffline.email||"";
     veterinario.crmv = sessaoOffline.crmv||""; veterinario.endereco = sessaoOffline.endereco||"";
-    await carregarDadosIniciais();
+    try{ await carregarDadosIniciais(); } catch(e){ console.error("Erro ao carregar dados offline:", e); }
     estado.pilha = ["dashboard"];
     setNavAtivo("dashboard");
     setView("dashboard");
