@@ -22,7 +22,7 @@
     --bg-danger:#fbe6e6; --text-danger:#c62828; --bg-danger-strong:#c62828;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;padding:0;height:100%;background:#0f3460;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:var(--text-primary)}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0f3460;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:var(--text-primary);position:fixed;width:100%}
   body{display:flex;justify-content:center}
   p{margin:0}
   button{font-family:inherit;font-size:13px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:9px 10px;cursor:pointer;color:var(--text-primary)}
@@ -30,6 +30,7 @@
   textarea{resize:vertical}
   ::-webkit-scrollbar{display:none}
   #app-frame{width:100%;max-width:480px;height:100dvh;background:var(--surface-2);display:flex;flex-direction:column;overflow:hidden}
+  #app-bottomnav{position:sticky;bottom:0;z-index:20}
 </style>
 </head>
 <body>
@@ -114,6 +115,7 @@
   <div style="display:flex;gap:4px;margin-bottom:14px;background:var(--surface-1);border-radius:10px;padding:3px;overflow-x:auto">
     <button id="tab-prop-resultados" onclick="setPropTab('resultados')" style="flex:1;border:none;padding:8px 4px;font-size:10px;white-space:nowrap">Resultados</button>
     <button id="tab-prop-gestacoes" onclick="setPropTab('gestacoes')" style="flex:1;border:none;padding:8px 4px;font-size:10px;white-space:nowrap">Gestações</button>
+    <button id="tab-prop-coberturas" onclick="setPropTab('coberturas')" style="flex:1;border:none;padding:8px 4px;font-size:10px;white-space:nowrap">Coberturas</button>
     <button id="tab-prop-lavados" onclick="setPropTab('lavados')" style="flex:1;border:none;padding:8px 4px;font-size:10px;white-space:nowrap">TE</button>
     <button id="tab-prop-financeiro" onclick="setPropTab('financeiro')" style="flex:1;border:none;padding:8px 4px;font-size:10px;white-space:nowrap">Financeiro</button>
     <button id="tab-prop-dados" onclick="setPropTab('dados')" style="flex:1;border:none;padding:8px 4px;font-size:10px;white-space:nowrap">Dados</button>
@@ -168,6 +170,18 @@
     <p style="font-size:12px;font-weight:500;color:var(--text-secondary);margin:0 0 8px">TE - Lavados e transferências de embrião</p>
     <div style="display:flex;flex-direction:column;gap:8px" id="lista-lavados"></div>
     <p id="msg-sem-lavados" style="display:none;font-size:12px;color:var(--text-muted);margin:0">Nenhuma doadora com lavado registrado nesta propriedade.</p>
+  </div>
+
+  <div id="prop-tab-coberturas" style="display:none">
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button onclick="filtroCobertura('todas')" id="chip-cob-todas" style="flex:1;border:none;padding:8px;font-size:12px">Todas</button>
+      <button onclick="filtroCobertura('positiva')" id="chip-cob-positiva" style="flex:1;border:none;padding:8px;font-size:12px">Positivas</button>
+      <button onclick="filtroCobertura('negativa')" id="chip-cob-negativa" style="flex:1;border:none;padding:8px;font-size:12px">Negativas</button>
+      <button onclick="filtroCobertura('pendente')" id="chip-cob-pendente" style="flex:1;border:none;padding:8px;font-size:12px">Pendentes</button>
+    </div>
+    <p style="font-size:12px;font-weight:500;color:var(--text-secondary);margin:0 0 8px">Coberturas registradas</p>
+    <div style="display:flex;flex-direction:column;gap:8px" id="lista-coberturas"></div>
+    <p id="msg-sem-coberturas" style="display:none;font-size:12px;color:var(--text-muted);margin:0">Nenhuma cobertura encontrada com esse filtro.</p>
   </div>
 
   <div id="prop-tab-financeiro" style="display:none">
@@ -310,7 +324,8 @@
         <img id="perfil-foto-img" style="display:none;width:44px;height:44px;border-radius:50%;object-fit:cover"/>
         <div id="perfil-foto-placeholder" style="width:44px;height:44px;border-radius:50%;background:var(--bg-accent);display:flex;align-items:center;justify-content:center;font-size:16px">📷</div>
       </div>
-      <input type="file" id="input-foto-animal" accept="image/*" style="display:none" onchange="anexarFotoAnimal(this)"/>
+      <input type="file" id="input-foto-camera" accept="image/*" capture="environment" style="display:none" onchange="anexarFotoAnimal(this)"/>
+      <input type="file" id="input-foto-galeria" accept="image/*" style="display:none" onchange="anexarFotoAnimal(this)"/>
       <div style="flex:1">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <p style="font-size:15px;font-weight:500;margin:0" id="perfil-nome">-</p>
@@ -330,8 +345,13 @@
 </div>
 
 <div id="view-foto-ampliada" style="padding:16px;display:none;text-align:center">
-  <img id="foto-ampliada-img" style="width:100%;max-width:320px;border-radius:14px;margin-bottom:18px"/>
-  <button onclick="document.getElementById('input-foto-animal').click()" style="width:100%;background:var(--fill-accent);color:var(--on-accent);border:none">📷 Alterar foto</button>
+  <img id="foto-ampliada-img" style="width:100%;max-width:320px;border-radius:14px;margin-bottom:18px;display:none"/>
+  <div id="foto-ampliada-vazio" style="display:none;width:100%;max-width:320px;height:220px;margin:0 auto 18px;border-radius:14px;background:var(--bg-accent);display:flex;align-items:center;justify-content:center;font-size:44px">📷</div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <button onclick="document.getElementById('input-foto-camera').click()" style="width:100%;background:var(--fill-accent);color:var(--on-accent);border:none">📷 Tirar foto</button>
+    <button onclick="document.getElementById('input-foto-galeria').click()" style="width:100%">🖼️ Escolher da galeria</button>
+    <button id="btn-excluir-foto" onclick="excluirFotoAnimal()" style="width:100%;background:var(--bg-danger);color:var(--text-danger);border:none;display:none">🗑️ Excluir foto</button>
+  </div>
 </div>
 
 <div id="view-manejo-sanitario" style="padding:16px;display:none">
@@ -387,7 +407,7 @@
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Cruzamento</p>
   <input id="gest-edit-cruzamento" style="margin-bottom:10px" placeholder="Ex: Sêmen Trovão"/>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-    <div><p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data inseminação</p><input id="gest-edit-data-ia" type="date"/></div>
+    <div><p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data cobertura</p><input id="gest-edit-data-ia" type="date"/></div>
     <div><p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data diagnóstico</p><input id="gest-edit-data-dg" type="date"/></div>
   </div>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Status</p>
@@ -486,16 +506,26 @@
     </div>
   </div>
 
-  <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px"><input type="checkbox" id="chk-ia" onchange="toggleIA(this)" style="width:auto"/>Inseminação artificial</label>
-  <div id="bloco-ia" style="display:none;background:var(--bg-accent);border-radius:10px;padding:10px;margin-bottom:10px">
-    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Tipo de sêmen</p>
-    <select id="ia-tipo-semen" style="margin-bottom:8px">
-      <option value="fresco">Fresco</option>
-      <option value="refrigerado">Refrigerado</option>
-      <option value="congelado">Congelado</option>
-    </select>
-    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Nome do garanhão</p>
-    <input id="ia-garanhao"/>
+  <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px"><input type="checkbox" id="chk-cobertura" onchange="toggleCobertura(this)" style="width:auto"/>Cobertura</label>
+  <div id="bloco-cobertura" style="display:none;background:var(--bg-accent);border-radius:10px;padding:10px;margin-bottom:10px">
+    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px">Tipo de cobertura</p>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button type="button" onclick="setTipoCobertura('ia')" id="btn-cobertura-ia" style="flex:1;border:none">Inseminação Artificial</button>
+      <button type="button" onclick="setTipoCobertura('monta_natural')" id="btn-cobertura-monta" style="flex:1;border:none">Monta Natural</button>
+    </div>
+    <div id="bloco-cobertura-ia" style="display:none">
+      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px">Tipo de sêmen</p>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button type="button" onclick="setTipoSemenCobertura('fresco_refrigerado')" id="btn-semen-fresco-refrigerado" style="flex:1;border:none">Fresco/Refrigerado</button>
+        <button type="button" onclick="setTipoSemenCobertura('congelado')" id="btn-semen-congelado" style="flex:1;border:none">Congelado</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Nome do garanhão</p>
+      <input id="cobertura-ia-garanhao"/>
+    </div>
+    <div id="bloco-cobertura-monta" style="display:none">
+      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Nome do garanhão</p>
+      <input id="cobertura-monta-garanhao"/>
+    </div>
   </div>
 
   <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px"><input type="checkbox" id="chk-dg" onchange="toggleDG(this)" style="width:auto"/>Diagnóstico gestacional</label>
@@ -839,7 +869,7 @@ const SUPABASE_KEY = "sb_publishable_077NnaX2Z3C_-ED7U6_LRw_rHIDj-2a";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ===== INFRAESTRUTURA OFFLINE =====
-const TABELAS_OFFLINE = ["propriedades","animais","historico","manejo_sanitario","estatisticas","gestacoes","financeiro","deslocamentos","produtos","compras","consumos","servicos","servico_itens","transferencias","inducoes","retornos","profiles"];
+const TABELAS_OFFLINE = ["propriedades","animais","historico","manejo_sanitario","estatisticas","gestacoes","financeiro","deslocamentos","produtos","compras","consumos","servicos","servico_itens","transferencias","inducoes","retornos","coberturas","profiles"];
 let idbDB = null;
 let usuarioAtualId = null;
 
@@ -1069,6 +1099,7 @@ const consumos = [];
 const transferencias = [];
 const inducoes = [];
 const retornos = [];
+const coberturas = [];
 const servicos = [
   {id:"s1", nome:"Exame reprodutivo", preco:150, itens:[]},
   {id:"s2", nome:"Coleta e avaliação de sêmen", preco:350, itens:[]},
@@ -1160,11 +1191,12 @@ function renderLembretes(){
   ).join("");
 }
 function renderEventos(){
-  const retornosHtml = retornos.map(r=>
-    '<div onclick="abrirRetorno(\''+r.animalId+'\')" style="cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
-    '<div style="width:34px;height:34px;border-radius:8px;background:var(--bg-accent);display:flex;align-items:center;justify-content:center;font-size:16px">📅</div>'+
-    '<div style="flex:1"><p style="font-size:13px;margin:0">Retorno agendado - '+r.animalNome+'</p><p style="font-size:12px;color:var(--text-muted);margin:0">Ficha do animal</p></div>'+
-    '<span style="font-size:11px;color:var(--text-muted)">'+r.data+'</span></div>'
+  const retornosHtml = retornos.map((r,i)=>
+    '<div style="display:flex;align-items:center;gap:10px;background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
+    '<div onclick="abrirRetorno(\''+r.animalId+'\')" style="cursor:pointer;width:34px;height:34px;border-radius:8px;background:var(--bg-accent);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📅</div>'+
+    '<div onclick="abrirRetorno(\''+r.animalId+'\')" style="cursor:pointer;flex:1"><p style="font-size:13px;margin:0">Retorno agendado - '+r.animalNome+'</p><p style="font-size:12px;color:var(--text-muted);margin:0">Ficha do animal</p></div>'+
+    '<span style="font-size:11px;color:var(--text-muted)">'+r.data+'</span>'+
+    '<span onclick="excluirNotificacaoRetorno('+i+',event)" style="font-size:14px;color:var(--text-danger);cursor:pointer;flex-shrink:0">🗑️</span></div>'
   ).join("");
   const eventosHtml = eventos.map(ev=>
     '<div onclick="abrirEvento(\''+ev.animalId+'\',\''+ev.tipo+'\')" style="cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
@@ -1173,6 +1205,14 @@ function renderEventos(){
     '<span style="font-size:11px;color:var(--text-muted)">'+ev.quando+'</span></div>'
   ).join("");
   document.getElementById("lista-eventos").innerHTML = retornosHtml + eventosHtml;
+}
+async function excluirNotificacaoRetorno(idx, ev){
+  ev.stopPropagation();
+  if(!confirm("Excluir este lembrete de retorno?")) return;
+  const r = retornos[idx];
+  if(r && r.id) await offlineDelete("retornos", r.id);
+  retornos.splice(idx,1);
+  renderEventos();
 }
 function abrirRetorno(animalId){
   const a = animais.find(x=>x.id===animalId);
@@ -1186,13 +1226,24 @@ function renderInducoes(){
   if(!inducoes.length){ bloco.style.display="none"; return; }
   bloco.style.display = "block";
   const nomeTipoSemen = {fresco_refrigerado:"Fresco/Refrigerado", congelado:"Congelado"};
-  document.getElementById("lista-inducoes").innerHTML = inducoes.map(ind=>
-    '<div onclick="abrirRetorno(\''+ind.animalId+'\')" style="cursor:pointer;background:var(--bg-danger);border-radius:10px;padding:10px 12px">'+
+  document.getElementById("lista-inducoes").innerHTML = inducoes.map((ind,i)=>
+    '<div style="background:var(--bg-danger);border-radius:10px;padding:10px 12px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'+
+    '<div onclick="abrirRetorno(\''+ind.animalId+'\')" style="cursor:pointer;flex:1">'+
     '<p style="font-size:13px;font-weight:500;margin:0 0 2px;color:var(--text-danger)">'+ind.animalNome+' - '+ind.medicamento+' ('+(nomeTipoSemen[ind.tipoSemen]||ind.tipoSemen)+')</p>'+
     '<p style="font-size:12px;color:var(--text-secondary);margin:0">Indução: '+ind.dataInducao+' '+(ind.horaInducao||'')+'</p>'+
-    '<p style="font-size:12px;color:var(--text-danger);margin:0;font-weight:500">'+ind.previsao+'</p>'+
-    '</div>'
+    '<p style="font-size:12px;color:var(--text-danger);margin:0;font-weight:500">'+ind.previsao+'</p></div>'+
+    '<span onclick="excluirNotificacaoInducao('+i+',event)" style="font-size:14px;color:var(--text-danger);cursor:pointer;flex-shrink:0">🗑️</span>'+
+    '</div></div>'
   ).join("");
+}
+async function excluirNotificacaoInducao(idx, ev){
+  ev.stopPropagation();
+  if(!confirm("Excluir este lembrete de indução?")) return;
+  const ind = inducoes[idx];
+  if(ind && ind.id) await offlineDelete("inducoes", ind.id);
+  inducoes.splice(idx,1);
+  renderInducoes();
 }
 function renderListaPropriedades(containerId, modo){
   document.getElementById("count-propriedades").textContent = propriedades.length;
@@ -1225,20 +1276,27 @@ function abrirMapa(){
   const query = encodeURIComponent((endereco||"")+" "+(cep||"")+" Vitória da Conquista BA");
   window.open("https://www.google.com/maps/search/?api=1&query="+query, "_blank");
 }
+const fotosSelecionadas = {};
 function previewFotos(input, targetId){
+  if(!fotosSelecionadas[targetId]) fotosSelecionadas[targetId] = [];
+  fotosSelecionadas[targetId] = fotosSelecionadas[targetId].concat(Array.from(input.files));
+  input.value = "";
+  renderPreviewFotos(targetId);
+}
+function removerFotoPreview(targetId, idx){
+  fotosSelecionadas[targetId].splice(idx,1);
+  renderPreviewFotos(targetId);
+}
+function renderPreviewFotos(targetId){
   const container = document.getElementById(targetId);
-  container.innerHTML = "";
-  Array.from(input.files).forEach(file=>{
+  const lista = fotosSelecionadas[targetId]||[];
+  container.innerHTML = lista.map((file,idx)=>{
     const url = URL.createObjectURL(file);
-    const img = document.createElement("img");
-    img.src = url;
-    img.style.width = "56px";
-    img.style.height = "56px";
-    img.style.objectFit = "cover";
-    img.style.borderRadius = "8px";
-    img.style.flexShrink = "0";
-    container.appendChild(img);
-  });
+    return '<div style="position:relative;flex-shrink:0">'+
+      '<img src="'+url+'" style="width:56px;height:56px;object-fit:cover;border-radius:8px;display:block"/>'+
+      '<span onclick="removerFotoPreview(\''+targetId+'\','+idx+')" style="position:absolute;top:-5px;right:-5px;background:var(--bg-danger-strong);color:#fff;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;line-height:1">✕</span>'+
+      '</div>';
+  }).join("");
 }
 function dataHojeBR(){
   const d = new Date();
@@ -1272,12 +1330,19 @@ function coletarDadosFormAtual(){
     }
     const edema = (document.getElementById("femea-edema")||{}).value || "1";
     partes.push("Edema uterino "+edema);
-    const iaChecked = document.getElementById("chk-ia") && document.getElementById("chk-ia").checked;
-    const iaDados = {checked:iaChecked};
-    if(iaChecked){
-      iaDados.tipoSemen = document.getElementById("ia-tipo-semen").value;
-      iaDados.garanhao = document.getElementById("ia-garanhao").value;
-      partes.push("IA com sêmen "+iaDados.tipoSemen+(iaDados.garanhao ? " do "+iaDados.garanhao : ""));
+    const coberturaChecked = document.getElementById("chk-cobertura") && document.getElementById("chk-cobertura").checked;
+    const coberturaDados = {checked:coberturaChecked};
+    if(coberturaChecked){
+      coberturaDados.tipo = estado.tipoCoberturaSelecionado || null;
+      if(coberturaDados.tipo==="ia"){
+        coberturaDados.tipoSemen = estado.tipoSemenCoberturaSelecionado || null;
+        coberturaDados.garanhao = (document.getElementById("cobertura-ia-garanhao")||{}).value || "";
+        const nomeTipoSemen = {fresco_refrigerado:"Fresco/Refrigerado", congelado:"Congelado"};
+        partes.push("Cobertura - IA "+(nomeTipoSemen[coberturaDados.tipoSemen]||"")+(coberturaDados.garanhao ? " do "+coberturaDados.garanhao : ""));
+      } else if(coberturaDados.tipo==="monta_natural"){
+        coberturaDados.garanhao = (document.getElementById("cobertura-monta-garanhao")||{}).value || "";
+        partes.push("Cobertura - Monta natural"+(coberturaDados.garanhao ? " do "+coberturaDados.garanhao : ""));
+      }
     }
     const dgChecked = document.getElementById("chk-dg") && document.getElementById("chk-dg").checked;
     const dgDados = {checked:dgChecked};
@@ -1293,7 +1358,7 @@ function coletarDadosFormAtual(){
       partes.push("Lavado de embrião - "+estado.lavadoSelecionado);
     }
     dados = {
-      ovarioEsq:ovarioEsq, ovarioDir:ovarioDir, edema:edema, ia:iaDados, dg:dgDados, lavado:lavadoDados,
+      ovarioEsq:ovarioEsq, ovarioDir:ovarioDir, edema:edema, cobertura:coberturaDados, dg:dgDados, lavado:lavadoDados,
       medicacoes: (document.getElementById("femea-medicacoes")||{}).value || "",
       obs: (document.getElementById("femea-obs")||{}).value || ""
     };
@@ -1320,18 +1385,52 @@ function coletarDadosFormAtual(){
   }
   return {tipo:tipoLabel, resumo:resumo, dados:dados};
 }
+async function sincronizarCobertura(historicoDbId){
+  if(estado.formAtual!=="repro-femea" || !historicoDbId) return;
+  const uid = usuarioAtualId;
+  const existente = coberturas.find(c=>c.origemHistoricoId===historicoDbId);
+  const chkCobertura = document.getElementById("chk-cobertura");
+  const tipo = estado.tipoCoberturaSelecionado;
+  if(chkCobertura && chkCobertura.checked && tipo){
+    const tipoSemen = tipo==="ia" ? estado.tipoSemenCoberturaSelecionado : null;
+    const garanhao = tipo==="ia"
+      ? ((document.getElementById("cobertura-ia-garanhao")||{}).value||"")
+      : ((document.getElementById("cobertura-monta-garanhao")||{}).value||"");
+    if(existente){
+      existente.tipo = tipo; existente.tipoSemen = tipoSemen; existente.garanhao = garanhao;
+      if(existente.id){
+        await offlineUpdate("coberturas", existente.id, { tipo:tipo, tipo_semen:tipoSemen, garanhao:garanhao });
+      }
+    } else if(uid && estado.animal){
+      const novoId = crypto.randomUUID();
+      const nova = {
+        id:novoId, animalId:estado.animal.id, animalNome:estado.animal.nome, propriedadeId:estado.animal.propriedade,
+        tipo:tipo, tipoSemen:tipoSemen, garanhao:garanhao, data:dataHojeBR(), status:"pendente", origemHistoricoId:historicoDbId
+      };
+      await offlineInsert("coberturas", {
+        id:novoId, user_id:uid, animal_id:nova.animalId, animal_nome:nova.animalNome, propriedade_id:nova.propriedadeId,
+        tipo:tipo, tipo_semen:tipoSemen, garanhao:garanhao, data:nova.data, status:"pendente", origem_historico_id:historicoDbId
+      });
+      coberturas.unshift(nova);
+    }
+  } else if(existente){
+    if(existente.id) await offlineDelete("coberturas", existente.id);
+    const idx = coberturas.indexOf(existente);
+    if(idx>-1) coberturas.splice(idx,1);
+  }
+}
 async function registrarResultadosReproducao(){
   if(estado.formAtual!=="repro-femea" || !estado.animal) return;
   const catAnimal = estado.animal.categoria;
   const propId = estado.animal.propriedade;
   if(!estatisticas[propId]) estatisticas[propId] = {inseminacoes:0, te:0, iaNegativosCount:0, teNegativosCount:0};
   const s = estatisticas[propId];
-  const iaChecked = document.getElementById("chk-ia") && document.getElementById("chk-ia").checked;
+  const coberturaChecked = document.getElementById("chk-cobertura") && document.getElementById("chk-cobertura").checked;
   const dgChecked = document.getElementById("chk-dg") && document.getElementById("chk-dg").checked;
   const resultado = estado.prenhezSelecionada;
   const uid = usuarioAtualId;
   let estatisticasMudou = false;
-  if(iaChecked){
+  if(coberturaChecked){
     if(catAnimal==="receptora"){ s.te = (s.te||0)+1; } else { s.inseminacoes = (s.inseminacoes||0)+1; }
     estatisticasMudou = true;
   }
@@ -1341,19 +1440,40 @@ async function registrarResultadosReproducao(){
     } else {
       if(resultado!=="positiva"){ s.iaNegativosCount = (s.iaNegativosCount||0)+1; estatisticasMudou = true; }
     }
+    const coberturaVinculada = coberturas.find(c=>c.animalId===estado.animal.id && c.status==="pendente");
+    const categoriaLabel = categorias[catAnimal] || catAnimal;
+    let tipoCoberturaLabel = null, garanhaoFinal = "", cruzamento = "-";
+    if(coberturaVinculada){
+      garanhaoFinal = coberturaVinculada.garanhao || "";
+      const nomeTipoSemen = {fresco_refrigerado:"Fresco/Refrigerado", congelado:"Congelado"};
+      if(coberturaVinculada.tipo==="ia"){
+        tipoCoberturaLabel = "Inseminação Artificial";
+        cruzamento = "IA "+(nomeTipoSemen[coberturaVinculada.tipoSemen]||"")+(garanhaoFinal ? " - "+garanhaoFinal : "");
+      } else {
+        tipoCoberturaLabel = "Monta Natural";
+        cruzamento = "Monta Natural"+(garanhaoFinal ? " - "+garanhaoFinal : "");
+      }
+      const novoStatus = resultado==="positiva" ? "positiva" : "negativa";
+      coberturaVinculada.status = novoStatus;
+      if(coberturaVinculada.id) await offlineUpdate("coberturas", coberturaVinculada.id, { status:novoStatus });
+    } else if(catAnimal==="receptora"){
+      cruzamento = "Transferência de embrião";
+    }
     if(resultado==="positiva"){
       if(!gestacoes[propId]) gestacoes[propId] = [];
-      const garanhao = document.getElementById("ia-garanhao") ? document.getElementById("ia-garanhao").value : "";
-      const categoriaLabel = categorias[catAnimal] || catAnimal;
-      const cruzamento = garanhao ? ("Sêmen "+garanhao) : (catAnimal==="receptora" ? "Transferência de embrião" : "-");
       const dataHoje = dataHojeBR();
+      const dataCobertura = coberturaVinculada ? coberturaVinculada.data : dataHoje;
       if(uid){
         const novoId = crypto.randomUUID();
         await offlineInsert("gestacoes", {
           id:novoId, user_id:uid, propriedade_id:propId, animal_id:estado.animal.id, animal_nome:estado.animal.nome,
-          categoria:categoriaLabel, cruzamento:cruzamento, data_inseminacao:dataHoje, data_diagnostico:dataHoje, status:"ativa"
+          categoria:categoriaLabel, cruzamento:cruzamento, tipo_cobertura:tipoCoberturaLabel, garanhao:garanhaoFinal||null,
+          data_inseminacao:dataCobertura, data_diagnostico:dataHoje, status:"ativa"
         });
-        gestacoes[propId].unshift({id:novoId, animalId:estado.animal.id, animal:estado.animal.nome, categoria:categoriaLabel, cruzamento:cruzamento, dataInseminacao:dataHoje, dataDiagnostico:dataHoje, status:"ativa"});
+        gestacoes[propId].unshift({
+          id:novoId, animalId:estado.animal.id, animal:estado.animal.nome, categoria:categoriaLabel, cruzamento:cruzamento,
+          tipoCobertura:tipoCoberturaLabel, garanhao:garanhaoFinal||null, dataInseminacao:dataCobertura, dataDiagnostico:dataHoje, status:"ativa"
+        });
       }
     }
   }
@@ -1371,18 +1491,21 @@ async function salvarAtendimento(){
   const coletado = coletarDadosFormAtual();
   if(!historico[id]) historico[id] = [];
   const uid = usuarioAtualId;
+  let historicoDbId = null;
   if(eraEdicao){
     const entry = historico[id][estado.editandoHistorico.idx];
     entry.tipo = coletado.tipo;
     entry.tipoForm = estado.formAtual;
     entry.resumo = coletado.resumo;
     entry.dados = coletado.dados;
+    historicoDbId = entry.dbId || null;
     if(entry.dbId){
       await offlineUpdate("historico", entry.dbId, {
         tipo:entry.tipo, tipo_form:entry.tipoForm, resumo:entry.resumo, dados:entry.dados
       });
     }
     estado.editandoHistorico = null;
+    if(estado.formAtual==="repro-femea") await sincronizarCobertura(historicoDbId);
   } else {
     const novoRegistro = {tipo:coletado.tipo, tipoForm:estado.formAtual, data:dataHojeBR(), resumo:coletado.resumo, dados:coletado.dados};
     if(uid){
@@ -1393,7 +1516,9 @@ async function salvarAtendimento(){
       });
       novoRegistro.dbId = novoId;
     }
+    historicoDbId = novoRegistro.dbId || null;
     historico[id].unshift(novoRegistro);
+    if(estado.formAtual==="repro-femea") await sincronizarCobertura(historicoDbId);
     await registrarResultadosReproducao();
     if(estado.formAtual==="repro-femea" && (document.getElementById("chk-dg")||{}).checked){
       await offlineUpdate("animais", estado.animal.id, {
@@ -1423,7 +1548,8 @@ async function salvarAtendimento(){
       transferencias.push(nova);
     }
   }
-  if(estado.formAtual==="repro-femea" && !eraEdicao){
+  if(estado.formAtual==="repro-femea" && historicoDbId){
+    const indExistente = inducoes.find(i=>i.origemHistoricoId===historicoDbId);
     const chkInducao = document.getElementById("chk-inducao");
     if(chkInducao && chkInducao.checked && estado.medicamentoInducao){
       const tipoSemen = document.getElementById("inducao-tipo-semen").value;
@@ -1433,40 +1559,66 @@ async function salvarAtendimento(){
       const previsao = horaInducao
         ? (janela.minH===janela.maxH ? formatarHoraAlvo(hoje,horaInducao,janela.minH) : formatarHoraAlvo(hoje,horaInducao,janela.minH)+" a "+formatarHoraAlvo(hoje,horaInducao,janela.maxH))
         : "-";
-      const novaInd = {
-        animalId:estado.animal.id, animalNome:estado.animal.nome, propriedade:estado.animal.propriedade,
-        medicamento:estado.medicamentoInducao, tipoSemen:tipoSemen, horaInducao:horaInducao, dataInducao:dataHojeBR(), previsao:previsao
-      };
-      if(uid){
-        const novoId = crypto.randomUUID();
-        await offlineInsert("inducoes", {
-          id:novoId, user_id:uid, animal_id:novaInd.animalId, animal_nome:novaInd.animalNome, propriedade_id:novaInd.propriedade,
-          medicamento:novaInd.medicamento, tipo_semen:novaInd.tipoSemen, hora_inducao:novaInd.horaInducao,
-          data_inducao:novaInd.dataInducao, previsao:novaInd.previsao
-        });
-        novaInd.id = novoId;
+      if(indExistente){
+        Object.assign(indExistente, {medicamento:estado.medicamentoInducao, tipoSemen:tipoSemen, horaInducao:horaInducao, previsao:previsao});
+        if(indExistente.id){
+          await offlineUpdate("inducoes", indExistente.id, {
+            medicamento:indExistente.medicamento, tipo_semen:indExistente.tipoSemen, hora_inducao:indExistente.horaInducao, previsao:indExistente.previsao
+          });
+        }
+      } else {
+        const novaInd = {
+          animalId:estado.animal.id, animalNome:estado.animal.nome, propriedade:estado.animal.propriedade,
+          medicamento:estado.medicamentoInducao, tipoSemen:tipoSemen, horaInducao:horaInducao, dataInducao:dataHojeBR(), previsao:previsao,
+          origemHistoricoId:historicoDbId
+        };
+        if(uid){
+          const novoId = crypto.randomUUID();
+          await offlineInsert("inducoes", {
+            id:novoId, user_id:uid, animal_id:novaInd.animalId, animal_nome:novaInd.animalNome, propriedade_id:novaInd.propriedade,
+            medicamento:novaInd.medicamento, tipo_semen:novaInd.tipoSemen, hora_inducao:novaInd.horaInducao,
+            data_inducao:novaInd.dataInducao, previsao:novaInd.previsao, origem_historico_id:historicoDbId
+          });
+          novaInd.id = novoId;
+        }
+        inducoes.unshift(novaInd);
       }
-      inducoes.unshift(novaInd);
+    } else if(indExistente){
+      if(indExistente.id) await offlineDelete("inducoes", indExistente.id);
+      const idx = inducoes.indexOf(indExistente);
+      if(idx>-1) inducoes.splice(idx,1);
     }
+
+    const retExistente = retornos.find(r=>r.origemHistoricoId===historicoDbId);
     const chkRetorno = document.getElementById("chk-retorno");
-    if(chkRetorno && chkRetorno.checked){
-      const dataRetorno = document.getElementById("input-data-retorno").value;
-      if(dataRetorno){
+    const dataRetorno = document.getElementById("input-data-retorno").value;
+    if(chkRetorno && chkRetorno.checked && dataRetorno){
+      const dataBR = dataISOparaBR(dataRetorno);
+      if(retExistente){
+        retExistente.data = dataBR;
+        if(retExistente.id) await offlineUpdate("retornos", retExistente.id, { data:dataBR });
+      } else {
         const novoRet = {
           animalId:estado.animal.id, animalNome:estado.animal.nome, propriedade:estado.animal.propriedade,
-          data: dataISOparaBR(dataRetorno)
+          data:dataBR, origemHistoricoId:historicoDbId
         };
         if(uid){
           const novoId = crypto.randomUUID();
           await offlineInsert("retornos", {
             id:novoId, user_id:uid, animal_id:novoRet.animalId, animal_nome:novoRet.animalNome,
-            propriedade_id:novoRet.propriedade, data:novoRet.data
+            propriedade_id:novoRet.propriedade, data:novoRet.data, origem_historico_id:historicoDbId
           });
           novoRet.id = novoId;
         }
         retornos.push(novoRet);
       }
+    } else if(retExistente){
+      if(retExistente.id) await offlineDelete("retornos", retExistente.id);
+      const idx = retornos.indexOf(retExistente);
+      if(idx>-1) retornos.splice(idx,1);
     }
+    renderEventos();
+    renderInducoes();
   }
   voltar();
 }
@@ -1563,11 +1715,12 @@ async function salvarPropriedade(){
   else { abrirPropriedadeGerenciar(id); }
 }
 function setPropTab(tab){
-  const tabs = ["resultados","gestacoes","lavados","financeiro","dados"];
+  const tabs = ["resultados","gestacoes","coberturas","lavados","financeiro","dados"];
   tabs.forEach(t=>{
     document.getElementById("prop-tab-"+t).style.display = t===tab ? "block":"none";
     document.getElementById("tab-prop-"+t).style.background = t===tab ? "var(--surface-2)":"transparent";
   });
+  if(tab==="coberturas") filtroCobertura(estado.filtroCobertura||"todas");
 }
 function abrirPropriedadeGerenciar(id){
   estado.propriedadeEditando = id;
@@ -1925,8 +2078,40 @@ function renderListaGestacoesFiltrada(){
     '<span style="font-size:13px;color:var(--text-muted)">✏️</span>'+
     '</div></div>'+
     '<p style="font-size:11px;color:var(--text-secondary);margin:0 0 2px">'+g.cruzamento+'</p>'+
-    '<p style="font-size:11px;color:var(--text-muted);margin:0">Inseminação: '+g.dataInseminacao+' - Diagnóstico: '+g.dataDiagnostico+(perdida?(' - '+g.tipoPerda+' em '+g.dataPerda):'')+'</p>'+
+    '<p style="font-size:11px;color:var(--text-muted);margin:0">Cobertura: '+g.dataInseminacao+' - Diagnóstico: '+g.dataDiagnostico+(perdida?(' - '+g.tipoPerda+' em '+g.dataPerda):'')+'</p>'+
     embriaoLinha+
+    '</div>';
+  }).join("");
+}
+function filtroCobertura(status){
+  estado.filtroCobertura = status;
+  ["todas","positiva","negativa","pendente"].forEach(s=>{
+    const el = document.getElementById("chip-cob-"+s);
+    const ativo = s===status;
+    el.style.background = ativo ? "var(--bg-accent)":"#fff";
+    el.style.color = ativo ? "var(--text-accent)":"var(--text-primary)";
+  });
+  renderListaCoberturasFiltrada();
+}
+function renderListaCoberturasFiltrada(){
+  const propId = estado.propriedadeEditando;
+  let cList = coberturas.filter(c=>c.propriedadeId===propId);
+  const status = estado.filtroCobertura || "todas";
+  if(status!=="todas"){ cList = cList.filter(c=>c.status===status); }
+  document.getElementById("msg-sem-coberturas").style.display = cList.length ? "none":"block";
+  const nomeTipoSemen = {fresco_refrigerado:"Fresco/Refrigerado", congelado:"Congelado"};
+  const corStatus = {positiva:"var(--bg-success)", negativa:"var(--bg-danger)", pendente:"var(--bg-accent)"};
+  const textoCorStatus = {positiva:"var(--text-success)", negativa:"var(--text-danger)", pendente:"var(--text-accent)"};
+  const labelStatus = {positiva:"Positiva", negativa:"Negativa", pendente:"Pendente"};
+  document.getElementById("lista-coberturas").innerHTML = cList.map(c=>{
+    const tipoLabel = c.tipo==="ia" ? ("IA - "+(nomeTipoSemen[c.tipoSemen]||"")) : "Monta Natural";
+    return '<div style="background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">'+
+    '<p style="font-size:13px;font-weight:500;margin:0">'+c.animalNome+'</p>'+
+    '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:'+(corStatus[c.status]||"var(--bg-accent)")+';color:'+(textoCorStatus[c.status]||"var(--text-accent)")+'">'+(labelStatus[c.status]||c.status)+'</span>'+
+    '</div>'+
+    '<p style="font-size:11px;color:var(--text-secondary);margin:0 0 2px">'+tipoLabel+(c.garanhao?(' · 🐴 '+c.garanhao):'')+'</p>'+
+    '<p style="font-size:11px;color:var(--text-muted);margin:0">'+c.data+'</p>'+
     '</div>';
   }).join("");
 }
@@ -2012,8 +2197,8 @@ function exportarGestacoesPropriedadePDF(){
   const p = propriedades.find(x=>x.id===id);
   const gList = gestacoes[id]||[];
   const html = gList.length
-    ? '<table><tr><th>Animal</th><th>Categoria</th><th>Status</th><th>Cruzamento</th><th>Diagnóstico</th></tr>'+
-      gList.map(g=>'<tr><td>'+g.animal+'</td><td>'+g.categoria+'</td><td>'+(g.status==="perdida"?(g.tipoPerda+" - "+g.dataPerda):"Ativa")+'</td><td>'+g.cruzamento+'</td><td>'+g.dataDiagnostico+'</td></tr>').join("")+
+    ? '<table><tr><th>Animal</th><th>Categoria</th><th>Status</th><th>Cruzamento</th><th>Cobertura</th><th>Diagnóstico</th></tr>'+
+      gList.map(g=>'<tr><td>'+g.animal+'</td><td>'+g.categoria+'</td><td>'+(g.status==="perdida"?(g.tipoPerda+" - "+g.dataPerda):"Ativa")+'</td><td>'+g.cruzamento+'</td><td>'+g.dataInseminacao+'</td><td>'+g.dataDiagnostico+'</td></tr>').join("")+
       '</table>'
     : '<p>Nenhuma gestação registrada.</p>';
   imprimirPDF("Gestações - "+p.nome, html);
@@ -2100,11 +2285,33 @@ function renderHistorico(animalId){
 }
 async function excluirHistorico(animalId, idx, ev){
   ev.stopPropagation();
-  if(!confirm("Excluir este registro do histórico? Isso não desfaz efeitos já lançados no financeiro/estoque.")) return;
+  if(!confirm("Excluir este registro do histórico? Isso também remove lembretes vinculados (indução/retorno) e não desfaz efeitos já lançados no financeiro/estoque.")) return;
   const entry = historico[animalId][idx];
-  if(entry && entry.dbId){ await offlineDelete("historico", entry.dbId); }
+  if(entry && entry.dbId){
+    const indVinculada = inducoes.find(i=>i.origemHistoricoId===entry.dbId);
+    if(indVinculada){
+      if(indVinculada.id) await offlineDelete("inducoes", indVinculada.id);
+      const iidx = inducoes.indexOf(indVinculada);
+      if(iidx>-1) inducoes.splice(iidx,1);
+    }
+    const retVinculado = retornos.find(r=>r.origemHistoricoId===entry.dbId);
+    if(retVinculado){
+      if(retVinculado.id) await offlineDelete("retornos", retVinculado.id);
+      const ridx = retornos.indexOf(retVinculado);
+      if(ridx>-1) retornos.splice(ridx,1);
+    }
+    const cobVinculada = coberturas.find(c=>c.origemHistoricoId===entry.dbId);
+    if(cobVinculada){
+      if(cobVinculada.id) await offlineDelete("coberturas", cobVinculada.id);
+      const cidx = coberturas.indexOf(cobVinculada);
+      if(cidx>-1) coberturas.splice(cidx,1);
+    }
+    await offlineDelete("historico", entry.dbId);
+  }
   historico[animalId].splice(idx,1);
   renderHistorico(animalId);
+  renderEventos();
+  renderInducoes();
 }
 function abrirHistoricoDetalhe(animalId, idx){
   const entry = historico[animalId][idx];
@@ -2128,11 +2335,29 @@ function abrirHistoricoDetalhe(animalId, idx){
     document.getElementById("femea-edema").value = d.edema||"1";
     document.getElementById("femea-medicacoes").value = d.medicacoes||"";
     document.getElementById("femea-obs").value = d.obs||"";
-    const iaChecked = !!(d.ia && d.ia.checked);
-    document.getElementById("chk-ia").checked = iaChecked;
-    document.getElementById("bloco-ia").style.display = iaChecked ? "block":"none";
-    if(d.ia && d.ia.tipoSemen) document.getElementById("ia-tipo-semen").value = d.ia.tipoSemen;
-    document.getElementById("ia-garanhao").value = (d.ia && d.ia.garanhao) || "";
+    const coberturaSrc = d.cobertura || (d.ia ? {checked:d.ia.checked, tipo: d.ia.checked ? "ia" : null, tipoSemen: d.ia.tipoSemen, garanhao: d.ia.garanhao} : null);
+    const coberturaChecked = !!(coberturaSrc && coberturaSrc.checked);
+    document.getElementById("chk-cobertura").checked = coberturaChecked;
+    document.getElementById("bloco-cobertura").style.display = coberturaChecked ? "block":"none";
+    if(coberturaChecked){
+      estado.tipoCoberturaSelecionado = coberturaSrc.tipo || null;
+      setTipoCoberturaVisual(estado.tipoCoberturaSelecionado);
+      if(coberturaSrc.tipo==="ia"){
+        estado.tipoSemenCoberturaSelecionado = coberturaSrc.tipoSemen || null;
+        setTipoSemenCoberturaVisual(estado.tipoSemenCoberturaSelecionado);
+        document.getElementById("cobertura-ia-garanhao").value = coberturaSrc.garanhao || "";
+        document.getElementById("cobertura-monta-garanhao").value = "";
+      } else {
+        document.getElementById("cobertura-monta-garanhao").value = coberturaSrc.garanhao || "";
+        document.getElementById("cobertura-ia-garanhao").value = "";
+      }
+    } else {
+      estado.tipoCoberturaSelecionado = null;
+      estado.tipoSemenCoberturaSelecionado = null;
+      setTipoCoberturaVisual(null);
+      document.getElementById("cobertura-ia-garanhao").value = "";
+      document.getElementById("cobertura-monta-garanhao").value = "";
+    }
     const dgChecked = !!(d.dg && d.dg.checked);
     document.getElementById("chk-dg").checked = dgChecked;
     document.getElementById("bloco-dg").style.display = dgChecked ? "block":"none";
@@ -2144,13 +2369,33 @@ function abrirHistoricoDetalhe(animalId, idx){
     estado.lavadoSelecionado = (d.lavado && d.lavado.resultado) || null;
     setLavadoVisual(estado.lavadoSelecionado);
     document.getElementById("bloco-lavado-receptora").style.display = "none";
-    document.getElementById("chk-inducao").checked = false;
-    document.getElementById("bloco-inducao").style.display = "none";
-    document.getElementById("bloco-inducao-detalhe").style.display = "none";
-    estado.medicamentoInducao = null;
-    setMedicamentoInducaoVisualReset();
-    document.getElementById("chk-retorno").checked = false;
-    document.getElementById("input-data-retorno").style.display = "none";
+    const indVinculada = entry.dbId ? inducoes.find(i=>i.origemHistoricoId===entry.dbId) : null;
+    if(indVinculada){
+      document.getElementById("chk-inducao").checked = true;
+      document.getElementById("bloco-inducao").style.display = "block";
+      document.getElementById("bloco-inducao-detalhe").style.display = "block";
+      estado.medicamentoInducao = indVinculada.medicamento;
+      setMedicamentoInducao(indVinculada.medicamento);
+      document.getElementById("inducao-tipo-semen").value = indVinculada.tipoSemen||"fresco_refrigerado";
+      document.getElementById("inducao-hora").value = indVinculada.horaInducao||"";
+      atualizarPrevisaoInducao();
+    } else {
+      document.getElementById("chk-inducao").checked = false;
+      document.getElementById("bloco-inducao").style.display = "none";
+      document.getElementById("bloco-inducao-detalhe").style.display = "none";
+      estado.medicamentoInducao = null;
+      setMedicamentoInducaoVisualReset();
+    }
+    const retVinculado = entry.dbId ? retornos.find(r=>r.origemHistoricoId===entry.dbId) : null;
+    if(retVinculado){
+      document.getElementById("chk-retorno").checked = true;
+      document.getElementById("input-data-retorno").style.display = "block";
+      document.getElementById("input-data-retorno").value = dataBRparaISO(retVinculado.data)||"";
+    } else {
+      document.getElementById("chk-retorno").checked = false;
+      document.getElementById("input-data-retorno").style.display = "none";
+      document.getElementById("input-data-retorno").value = "";
+    }
   } else if(entry.tipoForm==="coleta"){
     document.getElementById("lista-produtos-datalist-coleta").innerHTML = produtos.map(p=>'<option value="'+p.nome+'">').join("");
     document.getElementById("coleta-data").value = "";
@@ -2320,9 +2565,14 @@ function abrirForm(tipo){
     document.getElementById("inducao-hora").value = "";
     estado.medicamentoInducao = null;
     setMedicamentoInducaoVisualReset();
-    document.getElementById("chk-ia").checked = false;
+    document.getElementById("chk-cobertura").checked = false;
     document.getElementById("chk-dg").checked = false;
-    document.getElementById("bloco-ia").style.display = "none";
+    document.getElementById("bloco-cobertura").style.display = "none";
+    estado.tipoCoberturaSelecionado = null;
+    estado.tipoSemenCoberturaSelecionado = null;
+    setTipoCoberturaVisual(null);
+    document.getElementById("cobertura-ia-garanhao").value = "";
+    document.getElementById("cobertura-monta-garanhao").value = "";
     document.getElementById("bloco-dg").style.display = "none";
     document.getElementById("chk-retorno").checked = false;
     document.getElementById("input-data-retorno").style.display = "none";
@@ -2348,6 +2598,11 @@ function abrirForm(tipo){
     document.getElementById("coleta-destinacao").value = "fresco";
     document.getElementById("coleta-dose-fresco").value = "500";
   }
+  ["preview-fotos-clinico","preview-fotos-repro-femea","preview-fotos-coleta"].forEach(tid=>{
+    fotosSelecionadas[tid] = [];
+    const el = document.getElementById(tid);
+    if(el) el.innerHTML = "";
+  });
   setView(map[tipo]);
   if(tipo==="coleta"){ coletaDestinacaoChange(); }
 }
@@ -2413,8 +2668,38 @@ function atualizarPrevisaoInducao(){
   }
   document.getElementById("inducao-previsao").textContent = previsao;
 }
-function toggleIA(cb){
-  document.getElementById("bloco-ia").style.display = cb.checked ? "block":"none";
+function toggleCobertura(cb){
+  document.getElementById("bloco-cobertura").style.display = cb.checked ? "block":"none";
+  if(!cb.checked){
+    estado.tipoCoberturaSelecionado = null;
+    estado.tipoSemenCoberturaSelecionado = null;
+    setTipoCoberturaVisual(null);
+    document.getElementById("cobertura-ia-garanhao").value = "";
+    document.getElementById("cobertura-monta-garanhao").value = "";
+  }
+}
+function setTipoCobertura(v){
+  estado.tipoCoberturaSelecionado = v;
+  setTipoCoberturaVisual(v);
+}
+function setTipoCoberturaVisual(v){
+  document.getElementById("btn-cobertura-ia").style.background = v==="ia" ? "var(--fill-accent)":"#fff";
+  document.getElementById("btn-cobertura-ia").style.color = v==="ia" ? "var(--on-accent)":"var(--text-primary)";
+  document.getElementById("btn-cobertura-monta").style.background = v==="monta_natural" ? "var(--fill-accent)":"#fff";
+  document.getElementById("btn-cobertura-monta").style.color = v==="monta_natural" ? "var(--on-accent)":"var(--text-primary)";
+  document.getElementById("bloco-cobertura-ia").style.display = v==="ia" ? "block":"none";
+  document.getElementById("bloco-cobertura-monta").style.display = v==="monta_natural" ? "block":"none";
+  if(v!=="ia"){ estado.tipoSemenCoberturaSelecionado = null; setTipoSemenCoberturaVisual(null); }
+}
+function setTipoSemenCobertura(v){
+  estado.tipoSemenCoberturaSelecionado = v;
+  setTipoSemenCoberturaVisual(v);
+}
+function setTipoSemenCoberturaVisual(v){
+  document.getElementById("btn-semen-fresco-refrigerado").style.background = v==="fresco_refrigerado" ? "var(--fill-accent)":"#fff";
+  document.getElementById("btn-semen-fresco-refrigerado").style.color = v==="fresco_refrigerado" ? "var(--on-accent)":"var(--text-primary)";
+  document.getElementById("btn-semen-congelado").style.background = v==="congelado" ? "var(--fill-accent)":"#fff";
+  document.getElementById("btn-semen-congelado").style.color = v==="congelado" ? "var(--on-accent)":"var(--text-primary)";
 }
 function toggleDG(cb){
   document.getElementById("bloco-dg").style.display = cb.checked ? "block":"none";
@@ -2437,8 +2722,10 @@ function setLavado(v){
     document.getElementById("lavado-receptora-select").innerHTML = receptoras.length
       ? receptoras.map(a=>'<option value="'+a.id+'">'+a.nome+'</option>').join("")
       : '<option value="">Nenhuma receptora cadastrada neste haras</option>';
-    const garanhaoIA = document.getElementById("ia-garanhao") ? document.getElementById("ia-garanhao").value : "";
-    document.getElementById("lavado-garanhao").value = garanhaoIA || "";
+    const garanhaoCobertura = estado.tipoCoberturaSelecionado==="ia"
+      ? ((document.getElementById("cobertura-ia-garanhao")||{}).value||"")
+      : ((document.getElementById("cobertura-monta-garanhao")||{}).value||"");
+    document.getElementById("lavado-garanhao").value = garanhaoCobertura || "";
     document.getElementById("bloco-lavado-receptora").style.display = "block";
   } else {
     document.getElementById("bloco-lavado-receptora").style.display = "none";
@@ -2460,15 +2747,23 @@ function atualizarInfoEmbriaoForm(){
   }
 }
 function cliqueFotoAnimal(){
-  if(estado.animal && estado.animal.foto){
-    abrirFotoAmpliada();
-  } else {
-    document.getElementById("input-foto-animal").click();
-  }
+  abrirFotoAmpliada();
 }
 function abrirFotoAmpliada(){
-  if(!estado.animal || !estado.animal.foto) return;
-  document.getElementById("foto-ampliada-img").src = estado.animal.foto;
+  if(!estado.animal) return;
+  const img = document.getElementById("foto-ampliada-img");
+  const vazio = document.getElementById("foto-ampliada-vazio");
+  const btnExcluir = document.getElementById("btn-excluir-foto");
+  if(estado.animal.foto){
+    img.src = estado.animal.foto;
+    img.style.display = "block";
+    vazio.style.display = "none";
+    btnExcluir.style.display = "block";
+  } else {
+    img.style.display = "none";
+    vazio.style.display = "flex";
+    btnExcluir.style.display = "none";
+  }
   setView("foto-ampliada");
 }
 async function anexarFotoAnimal(input){
@@ -2481,7 +2776,11 @@ async function anexarFotoAnimal(input){
     if(imgPerfil){ imgPerfil.src = e.target.result; imgPerfil.style.display = "block"; }
     if(placeholder){ placeholder.style.display = "none"; }
     const imgAmpliada = document.getElementById("foto-ampliada-img");
-    if(imgAmpliada){ imgAmpliada.src = e.target.result; }
+    const vazio = document.getElementById("foto-ampliada-vazio");
+    if(imgAmpliada){ imgAmpliada.src = e.target.result; imgAmpliada.style.display = "block"; }
+    if(vazio){ vazio.style.display = "none"; }
+    const btnExcluir = document.getElementById("btn-excluir-foto");
+    if(btnExcluir){ btnExcluir.style.display = "block"; }
   };
   reader.readAsDataURL(file);
   const animalId = estado.animal.id;
@@ -2491,7 +2790,23 @@ async function anexarFotoAnimal(input){
   const { data: urlData } = supabaseClient.storage.from("fotos-animais").getPublicUrl(caminho);
   const url = urlData.publicUrl;
   estado.animal.foto = url;
+  const a = animais.find(x=>x.id===animalId);
+  if(a) a.foto = url;
   await offlineUpdate("animais", animalId, { foto_url:url });
+  input.value = "";
+}
+async function excluirFotoAnimal(){
+  if(!estado.animal || !confirm("Excluir a foto deste animal?")) return;
+  const animalId = estado.animal.id;
+  estado.animal.foto = null;
+  const a = animais.find(x=>x.id===animalId);
+  if(a) a.foto = null;
+  await offlineUpdate("animais", animalId, { foto_url:null });
+  const imgPerfil = document.getElementById("perfil-foto-img");
+  const placeholder = document.getElementById("perfil-foto-placeholder");
+  if(imgPerfil){ imgPerfil.style.display = "none"; }
+  if(placeholder){ placeholder.style.display = "flex"; }
+  abrirFotoAmpliada();
 }
 function abrirPerdaGestacional(){
   if(!estado.animal || !estado.animal.gestante) return;
@@ -2813,7 +3128,8 @@ function abrirRelatorioGeralVeterinario(){
   let lavadoCount=0, lavadoPosCount=0;
   let perdaCount=0;
   Object.values(historico).forEach(list=>list.forEach(h=>{
-    if(h.dados && h.dados.ia && h.dados.ia.checked) iaCount++;
+    const coberturaChecked = (h.dados && h.dados.cobertura && h.dados.cobertura.checked) || (h.dados && h.dados.ia && h.dados.ia.checked);
+    if(coberturaChecked) iaCount++;
     if(h.dados && h.dados.dg && h.dados.dg.checked) dgCount++;
     if(h.dados && h.dados.lavado && h.dados.lavado.checked){
       lavadoCount++;
@@ -3483,11 +3799,18 @@ async function carregarDadosIniciais(){
 
   const ind = await carregarTabela("inducoes");
   inducoes.length = 0;
-  ind.filter(i=>i.user_id===uid).forEach(i=>inducoes.push({id:i.id, animalId:i.animal_id, animalNome:i.animal_nome, propriedade:i.propriedade_id, medicamento:i.medicamento, tipoSemen:i.tipo_semen, horaInducao:i.hora_inducao, dataInducao:i.data_inducao, previsao:i.previsao}));
+  ind.filter(i=>i.user_id===uid).forEach(i=>inducoes.push({id:i.id, animalId:i.animal_id, animalNome:i.animal_nome, propriedade:i.propriedade_id, medicamento:i.medicamento, tipoSemen:i.tipo_semen, horaInducao:i.hora_inducao, dataInducao:i.data_inducao, previsao:i.previsao, origemHistoricoId:i.origem_historico_id||null}));
 
   const ret = await carregarTabela("retornos");
   retornos.length = 0;
-  ret.filter(r=>r.user_id===uid).forEach(r=>retornos.push({id:r.id, animalId:r.animal_id, animalNome:r.animal_nome, propriedade:r.propriedade_id, data:r.data}));
+  ret.filter(r=>r.user_id===uid).forEach(r=>retornos.push({id:r.id, animalId:r.animal_id, animalNome:r.animal_nome, propriedade:r.propriedade_id, data:r.data, origemHistoricoId:r.origem_historico_id||null}));
+
+  const cob = await carregarTabela("coberturas");
+  coberturas.length = 0;
+  cob.filter(c=>c.user_id===uid).forEach(c=>coberturas.push({
+    id:c.id, animalId:c.animal_id, animalNome:c.animal_nome, propriedadeId:c.propriedade_id,
+    tipo:c.tipo, tipoSemen:c.tipo_semen, garanhao:c.garanhao, data:c.data, status:c.status, origemHistoricoId:c.origem_historico_id||null
+  }));
 
   atualizarIndicadorSync();
 }
