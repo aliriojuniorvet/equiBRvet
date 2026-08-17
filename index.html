@@ -60,6 +60,8 @@
     <div id="auth-campos-nome" style="display:none">
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Nome completo</p>
       <input id="login-nome" style="margin-bottom:10px" placeholder="Seu nome"/>
+      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Telefone</p>
+      <input id="login-telefone" style="margin-bottom:10px" placeholder="(xx) xxxxx-xxxx"/>
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">CRMV</p>
       <input id="login-crmv" style="margin-bottom:10px" placeholder="Ex: CRMV-BA 1234"/>
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Endereço</p>
@@ -843,10 +845,26 @@
   <input id="vet-nome" style="margin-bottom:10px"/>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">E-mail</p>
   <input id="vet-email" type="email" style="margin-bottom:10px"/>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Telefone</p>
+  <input id="vet-telefone" style="margin-bottom:10px" placeholder="(xx) xxxxx-xxxx"/>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">CRMV</p>
   <input id="vet-crmv" style="margin-bottom:10px" placeholder="Ex: CRMV-BA 1234"/>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Endereço</p>
-  <input id="vet-endereco" style="margin-bottom:14px" placeholder="Endereço completo"/>
+  <input id="vet-endereco" style="margin-bottom:10px" placeholder="Rua, número"/>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Bairro</p>
+  <input id="vet-bairro" style="margin-bottom:10px"/>
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-bottom:14px">
+    <div>
+      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">UF</p>
+      <select id="vet-uf" onchange="carregarCidadesUF()"></select>
+    </div>
+    <div>
+      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Cidade</p>
+      <select id="vet-cidade" disabled><option value="">Selecione o UF primeiro</option></select>
+      <input id="vet-cidade-manual" style="display:none;margin-top:6px" placeholder="Digite a cidade"/>
+    </div>
+  </div>
+  <p id="meus-dados-aviso" style="display:none;font-size:12px;color:var(--text-danger);background:var(--bg-danger);border-radius:8px;padding:8px 10px;margin-bottom:12px">Preencha todos os campos para continuar usando o app.</p>
   <button onclick="salvarMeusDados()" style="width:100%;background:var(--fill-accent);color:var(--on-accent);border:none">Salvar</button>
 </div>
 
@@ -1068,7 +1086,7 @@ const animais = [];
 const eventos = [];
 const categorias = {doadora:"Doadora", matriz:"Matriz", receptora:"Receptora", garanhao:"Garanhão", castrado:"Castrado", nao_castrado:"Não castrado"};
 
-let veterinario = {nome:"", email:"", crmv:"", endereco:""};
+let veterinario = {nome:"", email:"", crmv:"", endereco:"", bairro:"", cidade:"", uf:"", telefone:""};
 
 const protocoloSaude = {
   vacinas: [
@@ -1137,7 +1155,7 @@ function getEstoqueAtual(produtoId){
   return {quantidade:qtd, custoMedio:custo};
 }
 
-let estado = {propriedade:null, propriedadeEditando:null, origemCadastro:"atender", filtroCategoria:"todas", filtroGestacaoCategoria:"todas", statusLancamento:"pendente", animal:null, animalEditando:null, formAtual:null, editandoHistorico:null, cadastroSexo:null, prenhezSelecionada:null, lavadoSelecionado:null, medicamentoInducao:null, servicoAtual:null, relatorioPropriedade:null, relatorioGeral:false, tipoPerdaSelecionado:null, gestacaoEditando:null, authTab:"entrar", produtoEditando:null, compraEditando:null, tituloRelatorioAtual:"Relatório", pilha:["dashboard"], navAtivo:"dashboard"};
+let estado = {propriedade:null, propriedadeEditando:null, origemCadastro:"atender", filtroCategoria:"todas", filtroGestacaoCategoria:"todas", statusLancamento:"pendente", animal:null, animalEditando:null, formAtual:null, editandoHistorico:null, cadastroSexo:null, prenhezSelecionada:null, lavadoSelecionado:null, medicamentoInducao:null, servicoAtual:null, relatorioPropriedade:null, relatorioGeral:false, tipoPerdaSelecionado:null, gestacaoEditando:null, authTab:"entrar", produtoEditando:null, compraEditando:null, tituloRelatorioAtual:"Relatório", pilha:["dashboard"], navAtivo:"dashboard", cadastroObrigatorio:false};
 
 function donutChart(pct, corPos, corNeg, sizePx){
   sizePx = sizePx || 84;
@@ -2918,19 +2936,98 @@ function cadastroSexo(sexo){
   document.getElementById("cadastro-macho-campos").style.display = sexo==="macho" ? "block":"none";
   document.getElementById("cadastro-femea-campos").style.display = sexo==="femea" ? "block":"none";
 }
+const listaUFs = [
+  ["AC","Acre"],["AL","Alagoas"],["AP","Amapá"],["AM","Amazonas"],["BA","Bahia"],["CE","Ceará"],
+  ["DF","Distrito Federal"],["ES","Espírito Santo"],["GO","Goiás"],["MA","Maranhão"],["MT","Mato Grosso"],
+  ["MS","Mato Grosso do Sul"],["MG","Minas Gerais"],["PA","Pará"],["PB","Paraíba"],["PR","Paraná"],
+  ["PE","Pernambuco"],["PI","Piauí"],["RJ","Rio de Janeiro"],["RN","Rio Grande do Norte"],["RS","Rio Grande do Sul"],
+  ["RO","Rondônia"],["RR","Roraima"],["SC","Santa Catarina"],["SP","São Paulo"],["SE","Sergipe"],["TO","Tocantins"]
+];
+function popularSelectUF(){
+  const sel = document.getElementById("vet-uf");
+  sel.innerHTML = '<option value="">Selecione</option>' + listaUFs.map(u=>'<option value="'+u[0]+'">'+u[0]+' - '+u[1]+'</option>').join("");
+}
+async function carregarCidadesUF(cidadeParaSelecionar){
+  const uf = document.getElementById("vet-uf").value;
+  const selectCidade = document.getElementById("vet-cidade");
+  const manualCidade = document.getElementById("vet-cidade-manual");
+  manualCidade.style.display = "none";
+  if(!uf){
+    selectCidade.style.display = "block";
+    selectCidade.disabled = true;
+    selectCidade.innerHTML = '<option value="">Selecione o UF primeiro</option>';
+    return;
+  }
+  selectCidade.style.display = "block";
+  selectCidade.disabled = true;
+  selectCidade.innerHTML = '<option value="">Carregando cidades...</option>';
+  try{
+    const resp = await fetch("https://servicodados.ibge.gov.br/api/v1/localidades/estados/"+uf+"/municipios");
+    if(!resp.ok) throw new Error("Falha ao buscar cidades");
+    const dados = await resp.json();
+    const nomes = dados.map(m=>m.nome).sort((a,b)=>a.localeCompare(b,"pt-BR"));
+    selectCidade.innerHTML = '<option value="">Selecione a cidade</option>' + nomes.map(n=>'<option value="'+n+'">'+n+'</option>').join("");
+    selectCidade.disabled = false;
+    if(cidadeParaSelecionar){
+      if(nomes.includes(cidadeParaSelecionar)){
+        selectCidade.value = cidadeParaSelecionar;
+      } else {
+        selectCidade.style.display = "none";
+        manualCidade.style.display = "block";
+        manualCidade.value = cidadeParaSelecionar;
+      }
+    }
+  } catch(e){
+    selectCidade.style.display = "none";
+    manualCidade.style.display = "block";
+    manualCidade.value = cidadeParaSelecionar || "";
+  }
+}
+function perfilCompleto(){
+  return !!(veterinario.nome && veterinario.email && veterinario.telefone && veterinario.crmv &&
+    veterinario.endereco && veterinario.bairro && veterinario.cidade && veterinario.uf);
+}
 function abrirMeusDados(){
   document.getElementById("vet-nome").value = veterinario.nome;
   document.getElementById("vet-email").value = veterinario.email;
+  document.getElementById("vet-telefone").value = veterinario.telefone||"";
   document.getElementById("vet-crmv").value = veterinario.crmv;
   document.getElementById("vet-endereco").value = veterinario.endereco;
+  document.getElementById("vet-bairro").value = veterinario.bairro||"";
+  popularSelectUF();
+  document.getElementById("vet-uf").value = veterinario.uf||"";
+  carregarCidadesUF(veterinario.cidade||"");
+  document.getElementById("meus-dados-aviso").style.display = "none";
   setView("meus-dados");
 }
-function salvarMeusDados(){
-  veterinario.nome = document.getElementById("vet-nome").value;
-  veterinario.email = document.getElementById("vet-email").value;
-  veterinario.crmv = document.getElementById("vet-crmv").value;
-  veterinario.endereco = document.getElementById("vet-endereco").value;
-  voltar();
+async function salvarMeusDados(){
+  const nome = document.getElementById("vet-nome").value.trim();
+  const email = document.getElementById("vet-email").value.trim();
+  const telefone = document.getElementById("vet-telefone").value.trim();
+  const crmv = document.getElementById("vet-crmv").value.trim();
+  const endereco = document.getElementById("vet-endereco").value.trim();
+  const bairro = document.getElementById("vet-bairro").value.trim();
+  const manualCidade = document.getElementById("vet-cidade-manual");
+  const cidade = (manualCidade.style.display!=="none" ? manualCidade.value : document.getElementById("vet-cidade").value).trim();
+  const uf = document.getElementById("vet-uf").value.trim().toUpperCase();
+  if(!nome || !email || !telefone || !crmv || !endereco || !bairro || !cidade || !uf){
+    document.getElementById("meus-dados-aviso").style.display = "block";
+    return;
+  }
+  veterinario = {nome, email, telefone, crmv, endereco, bairro, cidade, uf};
+  if(usuarioAtualId){
+    await offlineUpdate("profiles", usuarioAtualId, {
+      nome:nome, email:email, telefone:telefone, crmv:crmv, endereco:endereco, bairro:bairro, cidade:cidade, uf:uf
+    });
+  }
+  if(estado.cadastroObrigatorio){
+    estado.cadastroObrigatorio = false;
+    estado.pilha = ["dashboard"];
+    setNavAtivo("dashboard");
+    setView("dashboard");
+  } else {
+    voltar();
+  }
 }
 function formataSptz(v){
   if(v<=0) return "-";
@@ -3601,13 +3698,14 @@ async function fazerLogin(){
   try{
     if(estado.authTab==="criar"){
       const nome = document.getElementById("login-nome").value;
+      const telefone = document.getElementById("login-telefone").value;
       const crmv = document.getElementById("login-crmv").value;
       const endereco = document.getElementById("login-endereco").value;
       const { data, error } = await supabaseClient.auth.signUp({ email:email, password:senha });
       if(error){ alert("Erro ao criar conta: "+error.message); return; }
-      veterinario.nome = nome; veterinario.crmv = crmv; veterinario.endereco = endereco; veterinario.email = email;
+      veterinario.nome = nome; veterinario.telefone = telefone; veterinario.crmv = crmv; veterinario.endereco = endereco; veterinario.email = email;
       if(data.user){
-        await supabaseClient.from("profiles").upsert({ id:data.user.id, nome:nome, email:email, crmv:crmv, endereco:endereco });
+        await supabaseClient.from("profiles").upsert({ id:data.user.id, nome:nome, email:email, telefone:telefone, crmv:crmv, endereco:endereco });
       }
       if(!data.session){
         alert("Conta criada! Se a confirmação por e-mail estiver ativada no Supabase, verifique sua caixa de entrada antes de entrar.");
@@ -3625,7 +3723,8 @@ async function fazerLogin(){
   }
 }
 async function loginGoogle(){
-  const { error } = await supabaseClient.auth.signInWithOAuth({ provider:"google", options:{ redirectTo: window.location.href } });
+  const destino = window.location.origin + window.location.pathname;
+  const { error } = await supabaseClient.auth.signInWithOAuth({ provider:"google", options:{ redirectTo: destino } });
   if(error) alert("Erro ao entrar com Google: "+error.message);
 }
 async function carregarPerfilUsuario(userId){
@@ -3634,6 +3733,7 @@ async function carregarPerfilUsuario(userId){
     if(error) throw error;
     if(data){
       veterinario.nome = data.nome||""; veterinario.email = data.email||""; veterinario.crmv = data.crmv||""; veterinario.endereco = data.endereco||"";
+      veterinario.telefone = data.telefone||""; veterinario.bairro = data.bairro||""; veterinario.cidade = data.cidade||""; veterinario.uf = data.uf||"";
       if(idbDB) await idbPut("profiles", data);
     }
   } catch(e){
@@ -3648,6 +3748,7 @@ async function carregarPerfilUsuario(userId){
       });
       if(cache){
         veterinario.nome = cache.nome||""; veterinario.email = cache.email||""; veterinario.crmv = cache.crmv||""; veterinario.endereco = cache.endereco||"";
+        veterinario.telefone = cache.telefone||""; veterinario.bairro = cache.bairro||""; veterinario.cidade = cache.cidade||""; veterinario.uf = cache.uf||"";
       }
     }
   }
@@ -3666,9 +3767,9 @@ function setView(name){
   });
   document.getElementById("screen-title").textContent = (name==="cadastro" && estado.animalEditando ? "Editar animal" : (titles[name]||""))+(estado.editandoHistorico && name.indexOf("form")===0 ? " (editando)" : "");
   document.getElementById("app-header").style.display = name==="login" ? "none":"flex";
-  document.getElementById("app-bottomnav").style.display = name==="login" ? "none":"flex";
+  document.getElementById("app-bottomnav").style.display = (name==="login" || (name==="meus-dados" && estado.cadastroObrigatorio)) ? "none":"flex";
   document.getElementById("content-area").style.background = name==="login" ? "var(--fill-accent)" : "var(--surface-2)";
-  document.getElementById("btn-back").style.display = (name==="dashboard"||name==="login") ? "none":"inline";
+  document.getElementById("btn-back").style.display = (name==="dashboard"||name==="login"||(name==="meus-dados" && estado.cadastroObrigatorio)) ? "none":"inline";
   document.getElementById("header-logo").style.display = name==="dashboard" ? "inline-block":"none";
   document.getElementById("btn-header-add").style.display = name==="atender" ? "flex":"none";
   if(name==="dashboard"){ renderLembretes(); renderInducoes(); renderEventos(); }
@@ -3833,13 +3934,24 @@ setNavAtivo("dashboard");
 setPropTab("resultados");
 setStatusLancamento("pendente");
 
+function irAppPosLogin(){
+  if(perfilCompleto()){
+    estado.cadastroObrigatorio = false;
+    estado.pilha = ["dashboard"];
+    setNavAtivo("dashboard");
+    setView("dashboard");
+  } else {
+    estado.cadastroObrigatorio = true;
+    estado.pilha = ["meus-dados"];
+    abrirMeusDados();
+    document.getElementById("meus-dados-aviso").style.display = "block";
+  }
+}
 supabaseClient.auth.onAuthStateChange((event, session)=>{
   if(event==="SIGNED_IN" && session){
     usuarioAtualId = session.user.id;
     carregarPerfilUsuario(session.user.id).then(carregarDadosIniciais).then(()=>{
-      estado.pilha = ["dashboard"];
-      setNavAtivo("dashboard");
-      setView("dashboard");
+      irAppPosLogin();
     }).catch(e=>{
       console.error("Erro ao carregar dados após login:", e);
       estado.pilha = ["dashboard"];
@@ -3852,6 +3964,12 @@ supabaseClient.auth.onAuthStateChange((event, session)=>{
 (async function iniciarApp(){
   await abrirIndexedDB();
   atualizarIndicadorSync();
+  const paramsErro = new URLSearchParams(window.location.hash.replace(/^#/, "") || window.location.search.replace(/^\?/, ""));
+  const erroOAuth = paramsErro.get("error_description") || paramsErro.get("error");
+  if(erroOAuth){
+    alert("Erro ao entrar com Google: "+decodeURIComponent(erroOAuth.replace(/\+/g," ")));
+    history.replaceState(null, "", window.location.pathname);
+  }
   let session = null;
   try{
     const resultado = await supabaseClient.auth.getSession();
@@ -3859,15 +3977,21 @@ supabaseClient.auth.onAuthStateChange((event, session)=>{
   } catch(e){ /* provavelmente offline na primeira checagem de sessão */ }
   if(session){
     usuarioAtualId = session.user.id;
+    let carregouOk = false;
     try{
       await carregarPerfilUsuario(session.user.id);
       await carregarDadosIniciais();
+      carregouOk = true;
     } catch(e){
       console.error("Sessão válida, mas houve erro ao carregar dados:", e);
     }
-    estado.pilha = ["dashboard"];
-    setNavAtivo("dashboard");
-    setView("dashboard");
+    if(carregouOk){
+      irAppPosLogin();
+    } else {
+      estado.pilha = ["dashboard"];
+      setNavAtivo("dashboard");
+      setView("dashboard");
+    }
     tentarSincronizar();
     return;
   }
@@ -3883,6 +4007,8 @@ supabaseClient.auth.onAuthStateChange((event, session)=>{
     usuarioAtualId = sessaoOffline.id;
     veterinario.nome = sessaoOffline.nome||""; veterinario.email = sessaoOffline.email||"";
     veterinario.crmv = sessaoOffline.crmv||""; veterinario.endereco = sessaoOffline.endereco||"";
+    veterinario.telefone = sessaoOffline.telefone||""; veterinario.bairro = sessaoOffline.bairro||"";
+    veterinario.cidade = sessaoOffline.cidade||""; veterinario.uf = sessaoOffline.uf||"";
     try{ await carregarDadosIniciais(); } catch(e){ console.error("Erro ao carregar dados offline:", e); }
     estado.pilha = ["dashboard"];
     setNavAtivo("dashboard");
