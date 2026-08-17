@@ -1,0 +1,14 @@
+{
+  "name": "EquiBR",
+  "short_name": "EquiBR",
+  "description": "Gestão de reprodução e clínica equina",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f3460",
+  "theme_color": "#0f3460",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-512.png", "sizes": "300x300", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
