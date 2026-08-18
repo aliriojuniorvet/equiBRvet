@@ -447,6 +447,58 @@
   <span onclick="excluirGestacao()" style="display:block;text-align:center;color:var(--text-danger);font-size:12px;cursor:pointer">🗑️ Excluir gestação</span>
 </div>
 
+<div id="view-editar-cobertura" style="padding:16px;display:none">
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Animal</p>
+  <input id="cob-edit-animal" style="margin-bottom:10px" disabled/>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Tipo de cobertura</p>
+  <select id="cob-edit-tipo" onchange="atualizarCamposCoberturaEdicao()" style="margin-bottom:10px">
+    <option value="ia">Inseminação Artificial</option>
+    <option value="monta_natural">Monta Natural</option>
+  </select>
+  <div id="cob-edit-bloco-semen">
+    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Tipo de sêmen</p>
+    <select id="cob-edit-tipo-semen" style="margin-bottom:10px">
+      <option value="fresco_refrigerado">Fresco/Refrigerado</option>
+      <option value="congelado">Congelado</option>
+    </select>
+  </div>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Nome do garanhão</p>
+  <input id="cob-edit-garanhao" style="margin-bottom:10px"/>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+    <div><p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data</p><input id="cob-edit-data" type="date"/></div>
+    <div><p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Status</p>
+      <select id="cob-edit-status">
+        <option value="pendente">Pendente</option>
+        <option value="positiva">Positiva</option>
+        <option value="negativa">Negativa</option>
+      </select>
+    </div>
+  </div>
+  <button onclick="salvarEdicaoCobertura()" style="width:100%;background:var(--fill-accent);color:var(--on-accent);border:none;margin-bottom:10px">Salvar</button>
+  <span onclick="excluirCobertura()" style="display:block;text-align:center;color:var(--text-danger);font-size:12px;cursor:pointer">🗑️ Excluir cobertura</span>
+</div>
+
+<div id="view-editar-lavado" style="padding:16px;display:none">
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Doadora</p>
+  <input id="lav-edit-doadora" style="margin-bottom:10px" disabled/>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Receptora</p>
+  <select id="lav-edit-receptora" style="margin-bottom:10px"></select>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Nome do garanhão</p>
+  <input id="lav-edit-garanhao" style="margin-bottom:10px"/>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+    <div><p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data do lavado</p><input id="lav-edit-data" type="date"/></div>
+    <div><p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Status</p>
+      <select id="lav-edit-status">
+        <option value="pendente">Pendente</option>
+        <option value="positiva">Positiva</option>
+        <option value="negativa">Negativa</option>
+      </select>
+    </div>
+  </div>
+  <button onclick="salvarEdicaoLavado()" style="width:100%;background:var(--fill-accent);color:var(--on-accent);border:none;margin-bottom:10px">Salvar</button>
+  <span onclick="excluirLavadoEdicao()" style="display:block;text-align:center;color:var(--text-danger);font-size:12px;cursor:pointer">🗑️ Excluir transferência</span>
+</div>
+
 <div id="view-form-clinico" style="padding:16px;display:none">
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Queixa principal</p>
   <input id="clinico-queixa" style="margin-bottom:10px" placeholder="Motivo do atendimento"/>
@@ -543,15 +595,19 @@
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Nome do garanhão</p>
       <input id="cobertura-monta-garanhao"/>
     </div>
+    <p style="font-size:12px;color:var(--text-secondary);margin:8px 0 4px">Data da cobertura</p>
+    <input id="cobertura-data" type="date"/>
   </div>
 
   <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px"><input type="checkbox" id="chk-dg" onchange="toggleDG(this)" style="width:auto"/>Diagnóstico gestacional</label>
   <div id="bloco-dg" style="display:none;background:var(--bg-accent);border-radius:10px;padding:10px;margin-bottom:10px">
     <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px">Resultado da prenhez</p>
-    <div style="display:flex;gap:6px">
+    <div style="display:flex;gap:6px;margin-bottom:10px">
       <button onclick="setPrenhez('positiva')" id="dg-positiva" style="flex:1;border:none">Positiva</button>
       <button onclick="setPrenhez('negativa')" id="dg-negativa" style="flex:1;border:none">Negativa</button>
     </div>
+    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data do diagnóstico</p>
+    <input id="dg-data" type="date"/>
   </div>
 
   <div id="bloco-doadora" style="display:none">
@@ -1180,6 +1236,32 @@ const estatisticas = {};
 function contarGestacoesPositivas(propId, categoriaLabel){
   return (gestacoes[propId]||[]).filter(g=>g.categoria===categoriaLabel && g.status!=="perdida").length;
 }
+function contarCoberturasNegativas(propId){
+  return coberturas.filter(c=>{
+    if(c.status!=="negativa") return false;
+    const a = animais.find(x=>x.id===c.animalId);
+    return a && a.propriedade===propId;
+  }).length;
+}
+function contarTransferenciasNegativas(propId){
+  return transferencias.filter(t=>{
+    if(t.status!=="negativa") return false;
+    const a = animais.find(x=>x.id===t.receptoraId);
+    return a && a.propriedade===propId;
+  }).length;
+}
+async function sincronizarStatusVinculo(g, statusGestacao){
+  const novoStatus = statusGestacao==="perdida" ? "negativa" : "positiva";
+  if(g.coberturaId){
+    const c = coberturas.find(x=>x.id===g.coberturaId);
+    if(c){ c.status = novoStatus; }
+    await offlineUpdate("coberturas", g.coberturaId, { status: novoStatus });
+  } else if(g.transferenciaId){
+    const t = transferencias.find(x=>x.id===g.transferenciaId);
+    if(t){ t.status = novoStatus; }
+    await offlineUpdate("transferencias", g.transferenciaId, { status: novoStatus });
+  }
+}
 async function ajustarNegativoPorPerda(propId, categoriaLabel, delta){
   if(!estatisticas[propId]) estatisticas[propId] = {inseminacoes:0, te:0, iaNegativosCount:0, teNegativosCount:0};
   const s = estatisticas[propId];
@@ -1447,21 +1529,23 @@ function coletarDadosFormAtual(){
     const coberturaDados = {checked:coberturaChecked};
     if(coberturaChecked){
       coberturaDados.tipo = estado.tipoCoberturaSelecionado || null;
+      coberturaDados.data = dataISOparaBR(document.getElementById("cobertura-data").value) || dataHojeBR();
       if(coberturaDados.tipo==="ia"){
         coberturaDados.tipoSemen = estado.tipoSemenCoberturaSelecionado || null;
         coberturaDados.garanhao = (document.getElementById("cobertura-ia-garanhao")||{}).value || "";
         const nomeTipoSemen = {fresco_refrigerado:"Fresco/Refrigerado", congelado:"Congelado"};
-        partes.push("Cobertura - IA "+(nomeTipoSemen[coberturaDados.tipoSemen]||"")+(coberturaDados.garanhao ? " do "+coberturaDados.garanhao : ""));
+        partes.push("Cobertura ("+coberturaDados.data+") - IA "+(nomeTipoSemen[coberturaDados.tipoSemen]||"")+(coberturaDados.garanhao ? " do "+coberturaDados.garanhao : ""));
       } else if(coberturaDados.tipo==="monta_natural"){
         coberturaDados.garanhao = (document.getElementById("cobertura-monta-garanhao")||{}).value || "";
-        partes.push("Cobertura - Monta natural"+(coberturaDados.garanhao ? " do "+coberturaDados.garanhao : ""));
+        partes.push("Cobertura ("+coberturaDados.data+") - Monta natural"+(coberturaDados.garanhao ? " do "+coberturaDados.garanhao : ""));
       }
     }
     const dgChecked = document.getElementById("chk-dg") && document.getElementById("chk-dg").checked;
     const dgDados = {checked:dgChecked};
     if(dgChecked && estado.prenhezSelecionada){
       dgDados.resultado = estado.prenhezSelecionada;
-      partes.push("Diagnóstico gestacional - "+(estado.prenhezSelecionada==="positiva" ? "positivo" : "negativo"));
+      dgDados.data = dataISOparaBR(document.getElementById("dg-data").value) || dataHojeBR();
+      partes.push("Diagnóstico gestacional ("+dgDados.data+") - "+(estado.prenhezSelecionada==="positiva" ? "positivo" : "negativo"));
     }
     const lavadoEl = document.getElementById("chk-lavado");
     const lavadoChecked = lavadoEl && lavadoEl.checked;
@@ -1504,25 +1588,26 @@ async function sincronizarCobertura(historicoDbId){
   const existente = coberturas.find(c=>c.origemHistoricoId===historicoDbId);
   const chkCobertura = document.getElementById("chk-cobertura");
   const tipo = estado.tipoCoberturaSelecionado;
+  const dataCobertura = dataISOparaBR(document.getElementById("cobertura-data").value) || dataHojeBR();
   if(chkCobertura && chkCobertura.checked && tipo){
     const tipoSemen = tipo==="ia" ? estado.tipoSemenCoberturaSelecionado : null;
     const garanhao = tipo==="ia"
       ? ((document.getElementById("cobertura-ia-garanhao")||{}).value||"")
       : ((document.getElementById("cobertura-monta-garanhao")||{}).value||"");
     if(existente){
-      existente.tipo = tipo; existente.tipoSemen = tipoSemen; existente.garanhao = garanhao;
+      existente.tipo = tipo; existente.tipoSemen = tipoSemen; existente.garanhao = garanhao; existente.data = dataCobertura;
       if(existente.id){
-        await offlineUpdate("coberturas", existente.id, { tipo:tipo, tipo_semen:tipoSemen, garanhao:garanhao });
+        await offlineUpdate("coberturas", existente.id, { tipo:tipo, tipo_semen:tipoSemen, garanhao:garanhao, data:dataCobertura });
       }
     } else if(uid && estado.animal){
       const novoId = gerarUUID();
       const nova = {
         id:novoId, animalId:estado.animal.id, animalNome:estado.animal.nome, propriedadeId:estado.animal.propriedade,
-        tipo:tipo, tipoSemen:tipoSemen, garanhao:garanhao, data:dataHojeBR(), status:"pendente", origemHistoricoId:historicoDbId
+        tipo:tipo, tipoSemen:tipoSemen, garanhao:garanhao, data:dataCobertura, status:"pendente", origemHistoricoId:historicoDbId
       };
       await offlineInsert("coberturas", {
         id:novoId, user_id:uid, animal_id:nova.animalId, animal_nome:nova.animalNome, propriedade_id:nova.propriedadeId,
-        tipo:tipo, tipo_semen:tipoSemen, garanhao:garanhao, data:nova.data, status:"pendente", origem_historico_id:historicoDbId
+        tipo:tipo, tipo_semen:tipoSemen, garanhao:garanhao, data:dataCobertura, status:"pendente", origem_historico_id:historicoDbId
       });
       coberturas.unshift(nova);
     }
@@ -1541,21 +1626,19 @@ async function registrarResultadosReproducao(){
   const coberturaChecked = document.getElementById("chk-cobertura") && document.getElementById("chk-cobertura").checked;
   const dgChecked = document.getElementById("chk-dg") && document.getElementById("chk-dg").checked;
   const resultado = estado.prenhezSelecionada;
+  const dataDg = dataISOparaBR(document.getElementById("dg-data").value) || dataHojeBR();
   const uid = usuarioAtualId;
+  const entradaAtual = (historico[estado.animal.id]||[])[0];
   let estatisticasMudou = false;
   if(coberturaChecked){
     if(catAnimal==="receptora"){ s.te = (s.te||0)+1; } else { s.inseminacoes = (s.inseminacoes||0)+1; }
     estatisticasMudou = true;
   }
   if(dgChecked && resultado){
-    if(catAnimal==="receptora"){
-      if(resultado!=="positiva"){ s.teNegativosCount = (s.teNegativosCount||0)+1; estatisticasMudou = true; }
-    } else {
-      if(resultado!=="positiva"){ s.iaNegativosCount = (s.iaNegativosCount||0)+1; estatisticasMudou = true; }
-    }
     const coberturaVinculada = coberturas.find(c=>c.animalId===estado.animal.id && c.status==="pendente");
     const categoriaLabel = categorias[catAnimal] || catAnimal;
-    let tipoCoberturaLabel = null, garanhaoFinal = "", cruzamento = "-", transferenciaVinculada = null;
+    let tipoCoberturaLabel = null, garanhaoFinal = "", cruzamento = "-", transferenciaVinculada = null, transferenciaCriada = false;
+    const novoStatus = resultado==="positiva" ? "positiva" : "negativa";
     if(coberturaVinculada){
       garanhaoFinal = coberturaVinculada.garanhao || "";
       const nomeTipoSemen = {fresco_refrigerado:"Fresco/Refrigerado", congelado:"Congelado"};
@@ -1566,24 +1649,45 @@ async function registrarResultadosReproducao(){
         tipoCoberturaLabel = "Monta Natural";
         cruzamento = "Monta Natural"+(garanhaoFinal ? " - "+garanhaoFinal : "");
       }
-      const novoStatus = resultado==="positiva" ? "positiva" : "negativa";
       coberturaVinculada.status = novoStatus;
       if(coberturaVinculada.id) await offlineUpdate("coberturas", coberturaVinculada.id, { status:novoStatus });
     } else if(catAnimal==="receptora"){
       transferenciaVinculada = transferenciaPendente(estado.animal.id) ||
         transferencias.filter(t=>t.receptoraId===estado.animal.id).slice(-1)[0] || null;
-      if(transferenciaVinculada){
-        garanhaoFinal = transferenciaVinculada.garanhao || "";
-        tipoCoberturaLabel = "Transferência de Embrião";
-        cruzamento = "TE - Doadora: "+transferenciaVinculada.doadoraNome+(garanhaoFinal ? " × Garanhão: "+garanhaoFinal : "");
+      if(!transferenciaVinculada){
+        // Nenhuma transferência prévia registrada: cria uma diretamente já resolvida,
+        // para que o resultado sempre fique visível e editável na aba TE.
+        transferenciaCriada = true;
+        const novoId = gerarUUID();
+        transferenciaVinculada = {
+          id:novoId, doadoraId:null, doadoraNome:"(não informado)", receptoraId:estado.animal.id,
+          garanhao:"", dataLavado:dataDg, status:novoStatus, origemHistoricoId: entradaAtual ? entradaAtual.dbId : null
+        };
+        if(uid){
+          await offlineInsert("transferencias", {
+            id:novoId, user_id:uid, doadora_id:null, doadora_nome:"(não informado)", receptora_id:estado.animal.id,
+            garanhao:"", data_lavado:dataDg, status:novoStatus, origem_historico_id: entradaAtual ? entradaAtual.dbId : null
+          });
+        }
+        transferencias.push(transferenciaVinculada);
       } else {
-        cruzamento = "Transferência de embrião";
+        transferenciaVinculada.status = novoStatus;
+        if(transferenciaVinculada.id) await offlineUpdate("transferencias", transferenciaVinculada.id, { status:novoStatus });
       }
+      garanhaoFinal = transferenciaVinculada.garanhao || "";
+      tipoCoberturaLabel = "Transferência de Embrião";
+      cruzamento = "TE - Doadora: "+transferenciaVinculada.doadoraNome+(garanhaoFinal ? " × Garanhão: "+garanhaoFinal : "");
+    }
+    // guarda no próprio registro de histórico o que foi resolvido, para permitir reverter ao excluir
+    if(entradaAtual){
+      entradaAtual.dados = entradaAtual.dados || {};
+      entradaAtual.dados.resolveu = coberturaVinculada
+        ? {tipo:"cobertura", id:coberturaVinculada.id}
+        : (transferenciaVinculada ? {tipo:"transferencia", id:transferenciaVinculada.id, criou:transferenciaCriada} : null);
     }
     if(resultado==="positiva"){
       if(!gestacoes[propId]) gestacoes[propId] = [];
-      const dataHoje = dataHojeBR();
-      const dataCobertura = coberturaVinculada ? coberturaVinculada.data : (transferenciaVinculada ? transferenciaVinculada.dataLavado : dataHoje);
+      const dataCobertura = coberturaVinculada ? coberturaVinculada.data : (transferenciaVinculada ? transferenciaVinculada.dataLavado : dataDg);
       if(uid){
         const novoId = gerarUUID();
         await offlineInsert("gestacoes", {
@@ -1591,16 +1695,20 @@ async function registrarResultadosReproducao(){
           categoria:categoriaLabel, cruzamento:cruzamento, tipo_cobertura:tipoCoberturaLabel, garanhao:garanhaoFinal||null,
           cobertura_id: coberturaVinculada ? coberturaVinculada.id : null,
           transferencia_id: transferenciaVinculada ? transferenciaVinculada.id : null,
-          data_inseminacao:dataCobertura, data_diagnostico:dataHoje, status:"ativa"
+          data_inseminacao:dataCobertura, data_diagnostico:dataDg, status:"ativa"
         });
         gestacoes[propId].unshift({
           id:novoId, animalId:estado.animal.id, animal:estado.animal.nome, categoria:categoriaLabel, cruzamento:cruzamento,
           tipoCobertura:tipoCoberturaLabel, garanhao:garanhaoFinal||null,
           coberturaId: coberturaVinculada ? coberturaVinculada.id : null,
           transferenciaId: transferenciaVinculada ? transferenciaVinculada.id : null,
-          dataInseminacao:dataCobertura, dataDiagnostico:dataHoje, status:"ativa"
+          dataInseminacao:dataCobertura, dataDiagnostico:dataDg, status:"ativa"
         });
+        if(entradaAtual) entradaAtual.dados.gestacaoId = novoId;
       }
+    }
+    if(entradaAtual && entradaAtual.dbId){
+      await offlineUpdate("historico", entradaAtual.dbId, { dados: entradaAtual.dados });
     }
   }
   if(estatisticasMudou && uid){
@@ -1877,14 +1985,16 @@ function renderStatusPropriedade(id){
   document.getElementById("status-te").textContent = s.te||0;
   const iaPositivos = contarGestacoesPositivas(id, "Matriz");
   const tePositivos = contarGestacoesPositivas(id, "Receptora");
-  const iaTotal = iaPositivos+(s.iaNegativosCount||0);
+  const iaNegativos = contarCoberturasNegativas(id);
+  const teNegativos = contarTransferenciasNegativas(id);
+  const iaTotal = iaPositivos+iaNegativos;
   const iaPosPct = iaTotal>0 ? Math.round(iaPositivos/iaTotal*100) : 0;
-  const teTotal = tePositivos+(s.teNegativosCount||0);
+  const teTotal = tePositivos+teNegativos;
   const tePosPct = teTotal>0 ? Math.round(tePositivos/teTotal*100) : 0;
   document.getElementById("chart-ia-donut").innerHTML = donutChart(iaPosPct, "var(--bg-success-strong,#2e7d32)", "var(--bg-danger-strong,#c62828)");
   document.getElementById("chart-te-donut").innerHTML = donutChart(tePosPct, "var(--bg-success-strong,#2e7d32)", "var(--bg-danger-strong,#c62828)");
-  document.getElementById("chart-ia-detalhe").textContent = iaPositivos+" pos / "+(s.iaNegativosCount||0)+" neg";
-  document.getElementById("chart-te-detalhe").textContent = tePositivos+" pos / "+(s.teNegativosCount||0)+" neg";
+  document.getElementById("chart-ia-detalhe").textContent = iaPositivos+" pos / "+iaNegativos+" neg";
+  document.getElementById("chart-te-detalhe").textContent = tePositivos+" pos / "+teNegativos+" neg";
 
   renderLavadosPropriedade(id);
 }
@@ -1906,7 +2016,14 @@ function renderLavadosPropriedade(id){
     const negativos = eventos.filter(e=>e.resultado==="negativo").length;
     return {animal:a, eventos:eventos, positivos:positivos, negativos:negativos};
   }).filter(l=>l.eventos.length>0);
-  document.getElementById("msg-sem-lavados").style.display = linhas.length ? "none":"block";
+  const receptorasProp = animais.filter(a=>a.propriedade===id && a.categoria==="receptora").map(a=>a.id);
+  const doadoraDataPairs = doadoras.map(a=>eventosLavadoDoadora(a.id).map(e=>a.id+"|"+e.data)).flat();
+  const semLavado = transferencias.filter(t=>{
+    if(receptorasProp.indexOf(t.receptoraId)===-1) return false;
+    if(!t.doadoraId) return true;
+    return doadoraDataPairs.indexOf(t.doadoraId+"|"+t.dataLavado)===-1;
+  });
+  document.getElementById("msg-sem-lavados").style.display = (linhas.length || semLavado.length) ? "none":"block";
   document.getElementById("lista-lavados").innerHTML = linhas.map((l,i)=>{
     const detalheEventos = l.eventos.map(e=>{
       let receptoraInfo = "";
@@ -1915,7 +2032,7 @@ function renderLavadosPropriedade(id){
         if(t){
           const receptoraAnimal = animais.find(x=>x.id===t.receptoraId);
           const confirmado = t.status==="positiva" ? "Confirmado ✓" : (t.status==="negativa" ? "Não confirmado (negativo)" : "Aguardando confirmação");
-          receptoraInfo = '<span style="color:var(--text-accent)"> · Receptora: '+(receptoraAnimal?receptoraAnimal.nome:"-")+' - '+confirmado+'</span>';
+          receptoraInfo = '<span onclick="abrirEdicaoLavado(\''+t.id+'\',event)" style="cursor:pointer;text-decoration:underline;color:var(--text-accent)"> · Receptora: '+(receptoraAnimal?receptoraAnimal.nome:"-")+' - '+confirmado+'</span>';
         }
       }
       return '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:6px">'+
@@ -1931,6 +2048,65 @@ function renderLavadosPropriedade(id){
     detalheEventos+
     '</div></div>';
   }).join("");
+  const corStatusTE = {positiva:"var(--text-success)", negativa:"var(--text-danger)", pendente:"var(--text-secondary)"};
+  const labelStatusTE = {positiva:"Positiva", negativa:"Negativa", pendente:"Pendente"};
+  const blocoSemLavado = semLavado.length ? (
+    '<p style="font-size:12px;font-weight:500;color:var(--text-secondary);margin:16px 0 8px">Transferências sem lavado vinculado</p>'+
+    semLavado.map(t=>{
+      const receptoraAnimal = animais.find(x=>x.id===t.receptoraId);
+      return '<div onclick="abrirEdicaoLavado(\''+t.id+'\')" style="cursor:pointer;background:var(--surface-1);border-radius:10px;padding:10px 12px;margin-bottom:8px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center">'+
+      '<p style="font-size:13px;font-weight:500;margin:0">'+(receptoraAnimal?receptoraAnimal.nome:"-")+'</p>'+
+      '<span style="font-size:11px;color:'+(corStatusTE[t.status]||"var(--text-secondary)")+'">'+(labelStatusTE[t.status]||t.status)+'</span></div>'+
+      '<p style="font-size:11px;color:var(--text-muted);margin:2px 0 0">Doadora: '+(t.doadoraNome||"(não informado)")+(t.garanhao?(' · 🐴 '+t.garanhao):'')+' · '+t.dataLavado+'</p>'+
+      '</div>';
+    }).join("")
+  ) : "";
+  document.getElementById("lista-lavados").innerHTML += blocoSemLavado;
+}
+let lavadoEditandoId = null;
+function abrirEdicaoLavado(id, ev){
+  if(ev) ev.stopPropagation();
+  const t = transferencias.find(x=>x.id===id);
+  if(!t) return;
+  lavadoEditandoId = id;
+  const doadoraAtual = t.doadoraId ? animais.find(x=>x.id===t.doadoraId) : null;
+  document.getElementById("lav-edit-doadora").value = doadoraAtual ? doadoraAtual.nome : (t.doadoraNome||"(não informado)");
+  const receptoras = animais.filter(a=>a.categoria==="receptora");
+  document.getElementById("lav-edit-receptora").innerHTML = receptoras.map(a=>'<option value="'+a.id+'">'+a.nome+'</option>').join("");
+  document.getElementById("lav-edit-receptora").value = t.receptoraId||"";
+  document.getElementById("lav-edit-garanhao").value = t.garanhao||"";
+  document.getElementById("lav-edit-data").value = dataBRparaISO(t.dataLavado)||"";
+  document.getElementById("lav-edit-status").value = t.status||"pendente";
+  setView("editar-lavado");
+}
+async function salvarEdicaoLavado(){
+  const t = transferencias.find(x=>x.id===lavadoEditandoId);
+  if(!t) return;
+  t.receptoraId = document.getElementById("lav-edit-receptora").value;
+  const receptoraAnimal = animais.find(x=>x.id===t.receptoraId);
+  t.garanhao = document.getElementById("lav-edit-garanhao").value;
+  t.dataLavado = dataISOparaBR(document.getElementById("lav-edit-data").value) || t.dataLavado;
+  t.status = document.getElementById("lav-edit-status").value;
+  if(t.id){
+    await offlineUpdate("transferencias", t.id, {
+      receptora_id:t.receptoraId, garanhao:t.garanhao, data_lavado:t.dataLavado, status:t.status
+    });
+  }
+  voltar();
+  setPropTab("lavados");
+  renderLavadosPropriedade(estado.propriedadeEditando);
+}
+async function excluirLavadoEdicao(){
+  const t = transferencias.find(x=>x.id===lavadoEditandoId);
+  if(!t) return;
+  if(!confirm("Excluir esta transferência/confirmação? Isso não altera o histórico do atendimento, só este registro.")) return;
+  if(t.id) await offlineDelete("transferencias", t.id);
+  const idx = transferencias.indexOf(t);
+  if(idx>-1) transferencias.splice(idx,1);
+  voltar();
+  setPropTab("lavados");
+  renderLavadosPropriedade(estado.propriedadeEditando);
 }
 async function excluirEventoLavado(animalId, idx, ev){
   ev.stopPropagation();
@@ -2235,7 +2411,7 @@ function renderListaCoberturasFiltrada(){
   const labelStatus = {positiva:"Positiva", negativa:"Negativa", pendente:"Pendente"};
   document.getElementById("lista-coberturas").innerHTML = cList.map(c=>{
     const tipoLabel = c.tipo==="ia" ? ("IA - "+(nomeTipoSemen[c.tipoSemen]||"")) : "Monta Natural";
-    return '<div style="background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
+    return '<div onclick="abrirEdicaoCobertura(\''+c.id+'\')" style="cursor:pointer;background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">'+
     '<p style="font-size:13px;font-weight:500;margin:0">'+c.animalNome+'</p>'+
     '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:'+(corStatus[c.status]||"var(--bg-accent)")+';color:'+(textoCorStatus[c.status]||"var(--text-accent)")+'">'+(labelStatus[c.status]||c.status)+'</span>'+
@@ -2244,6 +2420,52 @@ function renderListaCoberturasFiltrada(){
     '<p style="font-size:11px;color:var(--text-muted);margin:0">'+c.data+'</p>'+
     '</div>';
   }).join("");
+}
+let coberturaEditandoId = null;
+function abrirEdicaoCobertura(id){
+  const c = coberturas.find(x=>x.id===id);
+  if(!c) return;
+  coberturaEditandoId = id;
+  document.getElementById("cob-edit-animal").value = c.animalNome;
+  document.getElementById("cob-edit-tipo").value = c.tipo||"ia";
+  document.getElementById("cob-edit-tipo-semen").value = c.tipoSemen||"fresco_refrigerado";
+  document.getElementById("cob-edit-garanhao").value = c.garanhao||"";
+  document.getElementById("cob-edit-data").value = dataBRparaISO(c.data)||"";
+  document.getElementById("cob-edit-status").value = c.status||"pendente";
+  atualizarCamposCoberturaEdicao();
+  setView("editar-cobertura");
+}
+function atualizarCamposCoberturaEdicao(){
+  const tipo = document.getElementById("cob-edit-tipo").value;
+  document.getElementById("cob-edit-bloco-semen").style.display = tipo==="ia" ? "block":"none";
+}
+async function salvarEdicaoCobertura(){
+  const c = coberturas.find(x=>x.id===coberturaEditandoId);
+  if(!c) return;
+  c.tipo = document.getElementById("cob-edit-tipo").value;
+  c.tipoSemen = c.tipo==="ia" ? document.getElementById("cob-edit-tipo-semen").value : null;
+  c.garanhao = document.getElementById("cob-edit-garanhao").value;
+  c.data = dataISOparaBR(document.getElementById("cob-edit-data").value) || c.data;
+  c.status = document.getElementById("cob-edit-status").value;
+  if(c.id){
+    await offlineUpdate("coberturas", c.id, {
+      tipo:c.tipo, tipo_semen:c.tipoSemen, garanhao:c.garanhao, data:c.data, status:c.status
+    });
+  }
+  voltar();
+  setPropTab("coberturas");
+  renderListaCoberturasFiltrada();
+}
+async function excluirCobertura(){
+  const c = coberturas.find(x=>x.id===coberturaEditandoId);
+  if(!c) return;
+  if(!confirm("Excluir esta cobertura? Isso não altera o histórico do atendimento, só este registro.")) return;
+  if(c.id) await offlineDelete("coberturas", c.id);
+  const idx = coberturas.indexOf(c);
+  if(idx>-1) coberturas.splice(idx,1);
+  voltar();
+  setPropTab("coberturas");
+  renderListaCoberturasFiltrada();
 }
 function dataBRparaISO(dataBR){
   if(!dataBR || dataBR.indexOf("/")===-1) return "";
@@ -2313,8 +2535,10 @@ async function salvarEdicaoGestacao(){
   }
   if(g.status==="perdida" && statusAnterior!=="perdida"){
     await ajustarNegativoPorPerda(id, g.categoria, 1);
+    await sincronizarStatusVinculo(g, "perdida");
   } else if(g.status!=="perdida" && statusAnterior==="perdida"){
     await ajustarNegativoPorPerda(id, g.categoria, -1);
+    await sincronizarStatusVinculo(g, "ativa");
   }
   voltar();
   setPropTab("gestacoes");
@@ -2325,6 +2549,17 @@ async function excluirGestacao(){
   const g = (gestacoes[id]||[])[estado.gestacaoEditando];
   if(!confirm("Excluir esta gestação do painel? Isso não altera o histórico do animal, só o registro de gestação.")) return;
   if(g && g.status==="perdida"){ await ajustarNegativoPorPerda(id, g.categoria, -1); }
+  if(g && (g.coberturaId || g.transferenciaId)){
+    if(g.coberturaId){
+      const c = coberturas.find(x=>x.id===g.coberturaId);
+      if(c){ c.status = "pendente"; }
+      await offlineUpdate("coberturas", g.coberturaId, { status:"pendente" });
+    } else if(g.transferenciaId){
+      const t = transferencias.find(x=>x.id===g.transferenciaId);
+      if(t){ t.status = "pendente"; }
+      await offlineUpdate("transferencias", g.transferenciaId, { status:"pendente" });
+    }
+  }
   if(g && g.id){ await offlineDelete("gestacoes", g.id); }
   gestacoes[id].splice(estado.gestacaoEditando,1);
   voltar();
@@ -2426,8 +2661,9 @@ function renderHistorico(animalId){
 }
 async function excluirHistorico(animalId, idx, ev){
   ev.stopPropagation();
-  if(!confirm("Excluir este registro do histórico? Isso também remove lembretes vinculados (indução/retorno) e não desfaz efeitos já lançados no financeiro/estoque.")) return;
+  if(!confirm("Excluir este registro do histórico? Isso também remove lembretes vinculados e desfaz gestação/cobertura/TE registradas por ele (não desfaz efeitos já lançados no financeiro/estoque).")) return;
   const entry = historico[animalId][idx];
+  const animal = animais.find(x=>x.id===animalId);
   if(entry && entry.dbId){
     const indVinculada = inducoes.find(i=>i.origemHistoricoId===entry.dbId);
     if(indVinculada){
@@ -2446,6 +2682,51 @@ async function excluirHistorico(animalId, idx, ev){
       if(cobVinculada.id) await offlineDelete("coberturas", cobVinculada.id);
       const cidx = coberturas.indexOf(cobVinculada);
       if(cidx>-1) coberturas.splice(cidx,1);
+    }
+    // desfaz o que este atendimento resolveu (DG que confirmou uma cobertura/TE anterior)
+    const resolveu = entry.dados && entry.dados.resolveu;
+    if(resolveu){
+      if(resolveu.tipo==="cobertura" && (!cobVinculada || cobVinculada.id!==resolveu.id)){
+        const c = coberturas.find(x=>x.id===resolveu.id);
+        if(c){ c.status = "pendente"; await offlineUpdate("coberturas", c.id, { status:"pendente" }); }
+      } else if(resolveu.tipo==="transferencia"){
+        const t = transferencias.find(x=>x.id===resolveu.id);
+        if(t){
+          if(resolveu.criou){
+            if(t.id) await offlineDelete("transferencias", t.id);
+            const tidx = transferencias.indexOf(t);
+            if(tidx>-1) transferencias.splice(tidx,1);
+          } else {
+            t.status = "pendente";
+            await offlineUpdate("transferencias", t.id, { status:"pendente" });
+          }
+        }
+      }
+    }
+    // desfaz a gestação criada por este atendimento
+    if(entry.dados && entry.dados.gestacaoId && animal){
+      const propId = animal.propriedade;
+      const lista = gestacoes[propId]||[];
+      const gidx = lista.findIndex(g=>g.id===entry.dados.gestacaoId);
+      if(gidx>-1){
+        if(lista[gidx].id) await offlineDelete("gestacoes", lista[gidx].id);
+        lista.splice(gidx,1);
+      }
+      await offlineUpdate("animais", animalId, { gestante:false });
+      animal.gestante = false;
+    }
+    // reverte o contador de inseminações/TE incrementado por este atendimento
+    if(entry.dados && entry.dados.cobertura && entry.dados.cobertura.checked && animal){
+      const propId = animal.propriedade;
+      if(!estatisticas[propId]) estatisticas[propId] = {inseminacoes:0, te:0, iaNegativosCount:0, teNegativosCount:0};
+      const s = estatisticas[propId];
+      if(animal.categoria==="receptora"){ s.te = Math.max(0,(s.te||0)-1); } else { s.inseminacoes = Math.max(0,(s.inseminacoes||0)-1); }
+      if(usuarioAtualId){
+        await offlineUpsertEstatisticas(propId, {
+          propriedade_id:propId, user_id:usuarioAtualId, inseminacoes:s.inseminacoes||0, te:s.te||0,
+          ia_negativos_count:s.iaNegativosCount||0, te_negativos_count:s.teNegativosCount||0
+        });
+      }
     }
     await offlineDelete("historico", entry.dbId);
   }
@@ -2658,7 +2939,9 @@ function abrirPerfil(id){
     const tPendente = transferenciaPendente(a.id);
     const tAtiva = tPendente || (trans && trans.status==="positiva" ? trans : null);
     if(tAtiva){
-      embriaoEl.textContent = "🧬 Com embrião de "+tAtiva.doadoraNome+" × "+tAtiva.garanhao+(tAtiva.status==="pendente"?" (aguardando confirmação)":" (confirmado)");
+      const doadoraAtual = tAtiva.doadoraId ? animais.find(x=>x.id===tAtiva.doadoraId) : null;
+      const nomeDoadora = doadoraAtual ? doadoraAtual.nome : (tAtiva.doadoraNome+" ⚠️ (não encontrada no cadastro de animais)");
+      embriaoEl.textContent = "🧬 Com embrião de "+nomeDoadora+" × "+tAtiva.garanhao+(tAtiva.status==="pendente"?" (aguardando confirmação)":" (confirmado)");
       embriaoEl.style.display = "block";
     } else { embriaoEl.style.display = "none"; }
   } else { embriaoEl.style.display = "none"; }
@@ -2811,12 +3094,16 @@ function atualizarPrevisaoInducao(){
 }
 function toggleCobertura(cb){
   document.getElementById("bloco-cobertura").style.display = cb.checked ? "block":"none";
+  if(cb.checked && !document.getElementById("cobertura-data").value){
+    document.getElementById("cobertura-data").value = new Date().toISOString().slice(0,10);
+  }
   if(!cb.checked){
     estado.tipoCoberturaSelecionado = null;
     estado.tipoSemenCoberturaSelecionado = null;
     setTipoCoberturaVisual(null);
     document.getElementById("cobertura-ia-garanhao").value = "";
     document.getElementById("cobertura-monta-garanhao").value = "";
+    document.getElementById("cobertura-data").value = "";
   }
 }
 function setTipoCobertura(v){
@@ -2844,6 +3131,10 @@ function setTipoSemenCoberturaVisual(v){
 }
 function toggleDG(cb){
   document.getElementById("bloco-dg").style.display = cb.checked ? "block":"none";
+  if(cb.checked && !document.getElementById("dg-data").value){
+    document.getElementById("dg-data").value = new Date().toISOString().slice(0,10);
+  }
+  if(!cb.checked){ document.getElementById("dg-data").value = ""; }
 }
 function toggleLavado(cb){
   document.getElementById("bloco-lavado-resultado").style.display = cb.checked ? "block":"none";
@@ -2981,6 +3272,11 @@ async function salvarPerdaGestacional(){
       await offlineUpdate("gestacoes", ativa.id, { status:"perdida", tipo_perda:ativa.tipoPerda, data_perda:data });
     }
     await ajustarNegativoPorPerda(propId, ativa.categoria, 1);
+    if(ativa.coberturaId){
+      const c = coberturas.find(x=>x.id===ativa.coberturaId);
+      if(c){ c.status = "negativa"; }
+      await offlineUpdate("coberturas", ativa.coberturaId, { status:"negativa" });
+    }
   }
   if(a.categoria==="receptora"){
     const t = transferencias.filter(x=>x.receptoraId===a.id && (x.status==="pendente"||x.status==="positiva")).sort((x,y)=>0).slice(-1)[0];
@@ -3442,8 +3738,8 @@ function abrirRelatorioResultados(){
   const s = estatisticas[id] || {inseminacoes:0,te:0,iaNegativosCount:0,teNegativosCount:0};
   const iaPositivos = contarGestacoesPositivas(id, "Matriz");
   const tePositivos = contarGestacoesPositivas(id, "Receptora");
-  const iaTotal=iaPositivos+(s.iaNegativosCount||0);
-  const teTotal=tePositivos+(s.teNegativosCount||0);
+  const iaTotal=iaPositivos+contarCoberturasNegativas(id);
+  const teTotal=tePositivos+contarTransferenciasNegativas(id);
   const iaPct = iaTotal>0?Math.round(iaPositivos/iaTotal*100):0;
   const tePct = teTotal>0?Math.round(tePositivos/teTotal*100):0;
   const qtdAnimais = animais.filter(a=>a.propriedade===id).length;
@@ -3874,9 +4170,9 @@ async function sair(){
   setView("login");
 }
 
-const titles = {login:"Entrar", dashboard:"EquiBR", propriedades:"Haras/Propriedades", "propriedade-detalhes":"Propriedade", "cadastro-lancamento":"Novo lançamento", "cadastro-deslocamento":"Novo deslocamento", atender:"Atender", "cadastro-propriedade":"Novo haras", animais:"Animais", perfil:"Ficha do animal", "foto-ampliada":"Foto do animal", "manejo-sanitario":"Manejo sanitário", "cadastro-sanitario":"Novo registro sanitário", "perda-gestacional":"Absorção/Aborto", "editar-gestacao":"Editar gestação", "form-clinico":"Atendimento clínico", "form-repro-femea":"Exame reprodutivo", "form-coleta":"Coleta de sêmen", cadastro:"Novo animal", relatorio:"Relatório", menu:"Menu", "meus-dados":"Meus dados", servicos:"Serviços", "cadastro-servico":"Novo serviço", "servico-detalhe":"Serviço", estoque:"Estoque", "cadastro-produto":"Novo produto", "cadastro-compra":"Registrar compra", "assinatura-bloqueada":"Acesso indisponível"};
+const titles = {login:"Entrar", dashboard:"EquiBR", propriedades:"Haras/Propriedades", "propriedade-detalhes":"Propriedade", "cadastro-lancamento":"Novo lançamento", "cadastro-deslocamento":"Novo deslocamento", atender:"Atender", "cadastro-propriedade":"Novo haras", animais:"Animais", perfil:"Ficha do animal", "foto-ampliada":"Foto do animal", "manejo-sanitario":"Manejo sanitário", "cadastro-sanitario":"Novo registro sanitário", "perda-gestacional":"Absorção/Aborto", "editar-gestacao":"Editar gestação", "editar-cobertura":"Editar cobertura", "editar-lavado":"Editar transferência", "form-clinico":"Atendimento clínico", "form-repro-femea":"Exame reprodutivo", "form-coleta":"Coleta de sêmen", cadastro:"Novo animal", relatorio:"Relatório", menu:"Menu", "meus-dados":"Meus dados", servicos:"Serviços", "cadastro-servico":"Novo serviço", "servico-detalhe":"Serviço", estoque:"Estoque", "cadastro-produto":"Novo produto", "cadastro-compra":"Registrar compra", "assinatura-bloqueada":"Acesso indisponível"};
 function setView(name){
-  ["login","dashboard","propriedades","propriedade-detalhes","cadastro-lancamento","cadastro-deslocamento","atender","cadastro-propriedade","animais","perfil","foto-ampliada","manejo-sanitario","cadastro-sanitario","perda-gestacional","editar-gestacao","form-clinico","form-repro-femea","form-coleta","cadastro","relatorio","menu","meus-dados","servicos","cadastro-servico","servico-detalhe","estoque","cadastro-produto","cadastro-compra","assinatura-bloqueada"].forEach(v=>{
+  ["login","dashboard","propriedades","propriedade-detalhes","cadastro-lancamento","cadastro-deslocamento","atender","cadastro-propriedade","animais","perfil","foto-ampliada","manejo-sanitario","cadastro-sanitario","perda-gestacional","editar-gestacao","editar-cobertura","editar-lavado","form-clinico","form-repro-femea","form-coleta","cadastro","relatorio","menu","meus-dados","servicos","cadastro-servico","servico-detalhe","estoque","cadastro-produto","cadastro-compra","assinatura-bloqueada"].forEach(v=>{
     document.getElementById("view-"+v).style.display = v===name ? "block":"none";
   });
   document.getElementById("screen-title").textContent = (name==="cadastro" && estado.animalEditando ? "Editar animal" : (titles[name]||""))+(estado.editandoHistorico && name.indexOf("form")===0 ? " (editando)" : "");
@@ -4048,7 +4344,7 @@ async function carregarDadosIniciais(){
 
   const trans = await carregarTabela("transferencias");
   transferencias.length = 0;
-  trans.filter(t=>t.user_id===uid).forEach(t=>transferencias.push({id:t.id, doadoraId:t.doadora_id, doadoraNome:t.doadora_nome, receptoraId:t.receptora_id, garanhao:t.garanhao, dataLavado:t.data_lavado, status:t.status}));
+  trans.filter(t=>t.user_id===uid).forEach(t=>transferencias.push({id:t.id, doadoraId:t.doadora_id, doadoraNome:t.doadora_nome, receptoraId:t.receptora_id, garanhao:t.garanhao, dataLavado:t.data_lavado, status:t.status, origemHistoricoId:t.origem_historico_id||null}));
 
   const ind = await carregarTabela("inducoes");
   inducoes.length = 0;
