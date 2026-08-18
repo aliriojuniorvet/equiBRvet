@@ -85,6 +85,13 @@
 </div>
 
 <div id="view-dashboard" style="padding:16px;display:none">
+  <div id="banner-trial" onclick="abrirAssinatura()" style="display:none;cursor:pointer;background:var(--fill-accent);color:var(--on-accent);border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div>
+      <p id="banner-trial-texto" style="font-size:13px;font-weight:500;margin:0"></p>
+      <p style="font-size:11px;opacity:0.85;margin:2px 0 0">Toque para assinar o Premium</p>
+    </div>
+    <span style="font-size:18px">⭐</span>
+  </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
     <div style="background:var(--surface-1);border-radius:10px;padding:12px">
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Haras/propriedades</p>
@@ -3824,7 +3831,7 @@ function setView(name){
   document.getElementById("btn-back").style.display = (name==="dashboard"||name==="login"||(name==="meus-dados" && estado.cadastroObrigatorio)) ? "none":"inline";
   document.getElementById("header-logo").style.display = name==="dashboard" ? "inline-block":"none";
   document.getElementById("btn-header-add").style.display = name==="atender" ? "flex":"none";
-  if(name==="dashboard"){ renderLembretes(); renderInducoes(); renderEventos(); }
+  if(name==="dashboard"){ renderLembretes(); renderInducoes(); renderEventos(); atualizarBannerTrial(); }
   if(name==="animais") renderAnimais();
   if(name==="propriedades") renderListaPropriedades("lista-propriedades-manage","manage");
   if(name==="atender") renderListaPropriedades("lista-propriedades-atender","atender");
@@ -4007,6 +4014,15 @@ function diasRestantesTrial(){
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const validade = new Date(veterinario.planoValidade+"T00:00:00");
   return Math.ceil((validade-hoje)/(1000*60*60*24));
+}
+function atualizarBannerTrial(){
+  const banner = document.getElementById("banner-trial");
+  if(veterinario.plano!=="trial"){ banner.style.display = "none"; return; }
+  const dias = diasRestantesTrial();
+  document.getElementById("banner-trial-texto").textContent = dias>0
+    ? ("Teste grátis - "+dias+" dia"+(dias===1?"":"s")+" restante"+(dias===1?"":"s"))
+    : "Teste grátis encerrado";
+  banner.style.display = "flex";
 }
 function acessoLiberado(){
   if(veterinario.plano==="admin" || veterinario.plano==="ativo") return true;
