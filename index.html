@@ -751,6 +751,7 @@
     <p style="font-size:15px;font-weight:600;color:var(--text-primary);margin:0">EquiBR</p>
     <p id="menu-status-plano" style="font-size:11px;color:var(--text-muted);margin:4px 0 0"></p>
   </div>
+  <button id="btn-menu-assinar" onclick="abrirAssinatura()" style="display:none;width:100%;text-align:left;margin-bottom:8px;background:var(--fill-accent);color:var(--on-accent);border:none">⭐ Assinar EquiBR Premium</button>
   <button onclick="abrirMeusDados()" style="width:100%;text-align:left;margin-bottom:8px">👤 Meus dados</button>
   <button onclick="irServicos()" style="width:100%;text-align:left;margin-bottom:8px">🧰 Serviços</button>
   <button onclick="irEstoque()" style="width:100%;text-align:left;margin-bottom:8px">📦 Estoque</button>
@@ -879,8 +880,9 @@
 
 <div id="view-assinatura-bloqueada" style="padding:32px 20px;display:none;text-align:center">
   <p style="font-size:40px;margin:0 0 12px">🔒</p>
-  <p style="font-size:16px;font-weight:500;margin:0 0 8px">Assinatura pendente</p>
-  <p style="font-size:13px;color:var(--text-secondary);margin:0 0 20px">Seu acesso ao EquiBR está temporariamente indisponível. Entre em contato para regularizar sua assinatura.</p>
+  <p id="bloqueio-titulo" style="font-size:16px;font-weight:500;margin:0 0 8px">Assinatura pendente</p>
+  <p id="bloqueio-texto" style="font-size:13px;color:var(--text-secondary);margin:0 0 20px">Seu acesso ao EquiBR está temporariamente indisponível.</p>
+  <button onclick="abrirAssinatura()" style="width:100%;background:var(--fill-accent);color:var(--on-accent);border:none;margin-bottom:8px">⭐ Assinar EquiBR Premium</button>
   <button onclick="sair()" style="width:100%">Sair</button>
 </div>
 
@@ -899,6 +901,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 const SUPABASE_URL = "https://izcmptwztwjuerptgkws.supabase.co";
+// Link de pagamento do Stripe. Ainda em modo de TESTE (troque pelo link de
+// produção assim que a conta Stripe for ativada e o link "buy.stripe.com/..."
+// definitivo for criado).
+const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_4gM9ASblKeZF7dY4dd0gw00";
 const SUPABASE_KEY = "sb_publishable_077NnaX2Z3C_-ED7U6_LRw_rHIDj-2a";
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -3829,8 +3835,15 @@ function setView(name){
   if(name==="servico-detalhe") renderServicoDetalhe();
   if(name==="estoque") setEstoqueTab("produtos");
   if(name==="menu"){
-    const labels = {admin:"Conta administradora", ativo:"Assinatura ativa", cortesia:"Acesso cortesia" + (veterinario.planoValidade ? (" até "+dataISOparaBR(veterinario.planoValidade)) : ""), pendente:"Assinatura pendente"};
+    const dias = diasRestantesTrial();
+    const labels = {
+      admin:"Conta administradora", ativo:"Assinatura ativa",
+      cortesia:"Acesso cortesia" + (veterinario.planoValidade ? (" até "+dataISOparaBR(veterinario.planoValidade)) : ""),
+      trial: dias>0 ? ("Teste grátis - "+dias+" dia"+(dias===1?"":"s")+" restante"+(dias===1?"":"s")) : "Teste grátis encerrado",
+      pendente:"Assinatura pendente"
+    };
     document.getElementById("menu-status-plano").textContent = labels[veterinario.plano] || "";
+    document.getElementById("btn-menu-assinar").style.display = (veterinario.plano==="admin"||veterinario.plano==="ativo") ? "none":"block";
   }
   document.getElementById("content-area").scrollTop = 0;
   if(estado.pilha[estado.pilha.length-1]!==name) estado.pilha.push(name);
@@ -3984,6 +3997,17 @@ setNavAtivo("dashboard");
 setPropTab("resultados");
 setStatusLancamento("pendente");
 
+function abrirAssinatura(){
+  if(!usuarioAtualId){ alert("Faça login primeiro."); return; }
+  const url = STRIPE_PAYMENT_LINK + "?client_reference_id=" + encodeURIComponent(usuarioAtualId) + "&prefilled_email=" + encodeURIComponent(veterinario.email||"");
+  window.open(url, "_blank");
+}
+function diasRestantesTrial(){
+  if(!veterinario.planoValidade) return 0;
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const validade = new Date(veterinario.planoValidade+"T00:00:00");
+  return Math.ceil((validade-hoje)/(1000*60*60*24));
+}
 function acessoLiberado(){
   if(veterinario.plano==="admin" || veterinario.plano==="ativo") return true;
   if(veterinario.plano==="cortesia"){
@@ -3991,10 +4015,21 @@ function acessoLiberado(){
     const hoje = new Date().toISOString().slice(0,10);
     return veterinario.planoValidade >= hoje;
   }
+  if(veterinario.plano==="trial"){
+    const hoje = new Date().toISOString().slice(0,10);
+    return !!veterinario.planoValidade && veterinario.planoValidade >= hoje;
+  }
   return false;
 }
 function irAppPosLogin(){
   if(!acessoLiberado()){
+    if(veterinario.plano==="trial"){
+      document.getElementById("bloqueio-titulo").textContent = "Seu teste grátis acabou";
+      document.getElementById("bloqueio-texto").textContent = "Os 15 dias de teste gratuito do EquiBR chegaram ao fim. Assine para continuar usando sem limites.";
+    } else {
+      document.getElementById("bloqueio-titulo").textContent = "Assinatura pendente";
+      document.getElementById("bloqueio-texto").textContent = "Seu acesso ao EquiBR está temporariamente indisponível. Assine para regularizar.";
+    }
     estado.pilha = ["assinatura-bloqueada"];
     setView("assinatura-bloqueada");
     return;
