@@ -768,6 +768,7 @@
 <div id="view-servicos" style="padding:16px;display:none">
   <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px">Catálogo de serviços - toque em um serviço para vincular os produtos que ele consome do estoque</p>
   <div style="display:flex;flex-direction:column;gap:8px" id="lista-servicos"></div>
+  <p id="msg-sem-servicos" style="display:none;font-size:12px;color:var(--text-muted);margin:0 0 10px">Nenhum serviço cadastrado ainda. Toque em "+ Novo serviço" para começar.</p>
   <button onclick="prepCadastroServico()" style="width:100%;margin-top:12px">+ Novo serviço</button>
 </div>
 
@@ -3663,6 +3664,7 @@ async function excluirCompra(){
 
 function irServicos(){ setView("servicos"); }
 function renderServicos(){
+  document.getElementById("msg-sem-servicos").style.display = servicos.length ? "none":"block";
   document.getElementById("lista-servicos").innerHTML = servicos.map(s=>
     '<div onclick="abrirServicoDetalhe(\''+s.id+'\')" style="cursor:pointer;background:var(--surface-1);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center">'+
     '<div><p style="font-size:13px;font-weight:500;margin:0 0 2px">'+s.nome+'</p><p style="font-size:11px;color:var(--text-muted);margin:0">'+s.itens.length+' produto(s) vinculado(s)</p></div>'+
@@ -3954,22 +3956,6 @@ async function carregarDadosIniciais(){
 
   let servs = (await carregarTabela("servicos")).filter(s=>s.user_id===uid);
   const itensServ = await carregarTabela("servico_itens");
-  if(servs.length===0 && navigator.onLine){
-    const seedServicos = [
-      {nome:"Exame reprodutivo", preco:150},
-      {nome:"Coleta e avaliação de sêmen", preco:350},
-      {nome:"Inseminação Artificial (Refrigerado)", preco:900},
-      {nome:"Inseminação Artificial (Congelado)", preco:1200},
-      {nome:"Transferência de Embrião (Refrigerado)", preco:2500},
-      {nome:"Transferência de Embrião (Congelado)", preco:3000},
-      {nome:"Coleta de sêmen", preco:300}
-    ];
-    for(const s of seedServicos){
-      const novoId = gerarUUID();
-      await offlineInsert("servicos", {id:novoId, user_id:uid, nome:s.nome, preco:s.preco});
-      servs.push({id:novoId, user_id:uid, nome:s.nome, preco:s.preco});
-    }
-  }
   servicos.length = 0;
   servs.forEach(s=>servicos.push({
     id:s.id, nome:s.nome, preco:s.preco,
@@ -4041,7 +4027,7 @@ function irAppPosLogin(){
   if(!acessoLiberado()){
     if(veterinario.plano==="trial"){
       document.getElementById("bloqueio-titulo").textContent = "Seu teste grátis acabou";
-      document.getElementById("bloqueio-texto").textContent = "Os 15 dias de teste gratuito do EquiBR chegaram ao fim. Assine para continuar usando sem limites.";
+      document.getElementById("bloqueio-texto").textContent = "Os 10 dias de teste gratuito do EquiBR chegaram ao fim. Assine para continuar usando sem limites.";
     } else {
       document.getElementById("bloqueio-titulo").textContent = "Assinatura pendente";
       document.getElementById("bloqueio-texto").textContent = "Seu acesso ao EquiBR está temporariamente indisponível. Assine para regularizar.";
