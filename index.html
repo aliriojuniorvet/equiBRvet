@@ -3767,7 +3767,7 @@ async function fazerLogin(){
         await supabaseClient.from("profiles").upsert({ id:data.user.id, nome:nome, email:email, telefone:telefone, crmv:crmv, endereco:endereco });
       }
       if(!data.session){
-        alert("Conta criada! Se a confirmação por e-mail estiver ativada no Supabase, verifique sua caixa de entrada antes de entrar.");
+        alert("Conta criada! Verifique seu e-mail e clique no link de confirmação antes de entrar.");
         return;
       }
       // sessão criada: o listener onAuthStateChange (SIGNED_IN) assume o carregamento e a troca de tela
