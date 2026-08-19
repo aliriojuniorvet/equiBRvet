@@ -352,6 +352,7 @@
       </div>
     </div>
     <p id="perfil-embriao-info" style="display:none;font-size:12px;color:var(--text-accent);background:var(--bg-accent);border-radius:6px;padding:6px 8px;margin:8px 0 0">-</p>
+    <p id="perfil-sincronizada-info" style="display:none;font-size:12px;color:var(--text-secondary);background:var(--surface-2);border-radius:6px;padding:6px 8px;margin:8px 0 0">-</p>
   </div>
   <div style="display:flex;flex-direction:column;gap:8px" id="perfil-botoes"></div>
 
@@ -480,7 +481,7 @@
 
 <div id="view-editar-lavado" style="padding:16px;display:none">
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Doadora</p>
-  <input id="lav-edit-doadora" style="margin-bottom:10px" disabled/>
+  <select id="lav-edit-doadora" style="margin-bottom:10px"></select>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Receptora</p>
   <select id="lav-edit-receptora" style="margin-bottom:10px"></select>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Nome do garanhão</p>
@@ -542,11 +543,11 @@
     <label style="display:flex;align-items:center;gap:8px;font-size:13px"><input type="checkbox" id="chk-sincronizada" onchange="toggleSincronizada(this)" style="width:auto"/>Sincronizada com a doadora</label>
     <div id="bloco-sincronizada" style="display:none;margin-top:8px">
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Doadora</p>
-      <select style="margin-bottom:8px"><option>Luar</option></select>
+      <select id="sincronizada-doadora" style="margin-bottom:8px"></select>
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Dia do ciclo</p>
       <div style="display:flex;align-items:center;gap:6px">
         <span style="font-size:14px">D</span>
-        <input type="number" style="width:70px" placeholder="0"/>
+        <input id="sincronizada-dia" type="number" style="width:70px" placeholder="0"/>
       </div>
     </div>
   </div>
@@ -1554,8 +1555,17 @@ function coletarDadosFormAtual(){
       lavadoDados.resultado = estado.lavadoSelecionado;
       partes.push("Lavado de embrião - "+estado.lavadoSelecionado);
     }
+    const chkSinc = document.getElementById("chk-sincronizada");
+    const sincChecked = chkSinc && chkSinc.checked;
+    const sincronizadaDados = {checked:sincChecked};
+    if(sincChecked){
+      sincronizadaDados.doadoraId = document.getElementById("sincronizada-doadora").value || null;
+      sincronizadaDados.diaCiclo = document.getElementById("sincronizada-dia").value || "";
+      const doadoraSinc = sincronizadaDados.doadoraId ? animais.find(x=>x.id===sincronizadaDados.doadoraId) : null;
+      partes.push("Sincronizada com "+(doadoraSinc?doadoraSinc.nome:"-")+(sincronizadaDados.diaCiclo?(" - D"+sincronizadaDados.diaCiclo):""));
+    }
     dados = {
-      ovarioEsq:ovarioEsq, ovarioDir:ovarioDir, edema:edema, cobertura:coberturaDados, dg:dgDados, lavado:lavadoDados,
+      ovarioEsq:ovarioEsq, ovarioDir:ovarioDir, edema:edema, cobertura:coberturaDados, dg:dgDados, lavado:lavadoDados, sincronizada:sincronizadaDados,
       medicacoes: (document.getElementById("femea-medicacoes")||{}).value || "",
       obs: (document.getElementById("femea-obs")||{}).value || ""
     };
@@ -2070,8 +2080,16 @@ function abrirEdicaoLavado(id, ev){
   const t = transferencias.find(x=>x.id===id);
   if(!t) return;
   lavadoEditandoId = id;
+  const doadoras = animais.filter(a=>a.categoria==="doadora");
   const doadoraAtual = t.doadoraId ? animais.find(x=>x.id===t.doadoraId) : null;
-  document.getElementById("lav-edit-doadora").value = doadoraAtual ? doadoraAtual.nome : (t.doadoraNome||"(não informado)");
+  let opcoes = doadoras.map(a=>'<option value="'+a.id+'">'+a.nome+'</option>').join("");
+  if(!doadoraAtual){
+    // doadora não encontrada nos animais cadastrados (nome antigo/órfão): mostra como opção
+    // separada até o usuário escolher a doadora correta na lista
+    opcoes = '<option value="">'+(t.doadoraNome||"(não informado)")+' ⚠️ não cadastrada - escolha a doadora correta</option>' + opcoes;
+  }
+  document.getElementById("lav-edit-doadora").innerHTML = opcoes;
+  document.getElementById("lav-edit-doadora").value = t.doadoraId||"";
   const receptoras = animais.filter(a=>a.categoria==="receptora");
   document.getElementById("lav-edit-receptora").innerHTML = receptoras.map(a=>'<option value="'+a.id+'">'+a.nome+'</option>').join("");
   document.getElementById("lav-edit-receptora").value = t.receptoraId||"";
@@ -2083,6 +2101,12 @@ function abrirEdicaoLavado(id, ev){
 async function salvarEdicaoLavado(){
   const t = transferencias.find(x=>x.id===lavadoEditandoId);
   if(!t) return;
+  const novaDoadoraId = document.getElementById("lav-edit-doadora").value;
+  if(novaDoadoraId){
+    const doadoraAnimal = animais.find(x=>x.id===novaDoadoraId);
+    t.doadoraId = novaDoadoraId;
+    t.doadoraNome = doadoraAnimal ? doadoraAnimal.nome : t.doadoraNome;
+  }
   t.receptoraId = document.getElementById("lav-edit-receptora").value;
   const receptoraAnimal = animais.find(x=>x.id===t.receptoraId);
   t.garanhao = document.getElementById("lav-edit-garanhao").value;
@@ -2090,7 +2114,7 @@ async function salvarEdicaoLavado(){
   t.status = document.getElementById("lav-edit-status").value;
   if(t.id){
     await offlineUpdate("transferencias", t.id, {
-      receptora_id:t.receptoraId, garanhao:t.garanhao, data_lavado:t.dataLavado, status:t.status
+      doadora_id:t.doadoraId, doadora_nome:t.doadoraNome, receptora_id:t.receptoraId, garanhao:t.garanhao, data_lavado:t.dataLavado, status:t.status
     });
   }
   voltar();
@@ -2373,7 +2397,11 @@ function renderListaGestacoesFiltrada(){
     let embriaoLinha = "";
     if(g.animalId){
       const t = transferencias.filter(x=>x.receptoraId===g.animalId).sort((a,b)=>0).slice(-1)[0];
-      if(t){ embriaoLinha = '<p style="font-size:11px;color:var(--text-accent);margin:2px 0 0">🧬 Embrião de '+t.doadoraNome+' × '+t.garanhao+'</p>'; }
+      if(t){
+        const doadoraAtual = t.doadoraId ? animais.find(x=>x.id===t.doadoraId) : null;
+        const nomeDoadora = doadoraAtual ? doadoraAtual.nome : (t.doadoraNome+" ⚠️");
+        embriaoLinha = '<p style="font-size:11px;color:var(--text-accent);margin:2px 0 0">🧬 Embrião de '+nomeDoadora+' × '+t.garanhao+'</p>';
+      }
     }
     return '<div onclick="editarGestacao('+idx+')" style="cursor:pointer;background:'+(perdida?"var(--bg-danger)":"var(--surface-1)")+';border-radius:10px;padding:10px 12px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
@@ -2791,6 +2819,23 @@ function abrirHistoricoDetalhe(animalId, idx){
     estado.lavadoSelecionado = (d.lavado && d.lavado.resultado) || null;
     setLavadoVisual(estado.lavadoSelecionado);
     document.getElementById("bloco-lavado-receptora").style.display = "none";
+    const sincChecked = !!(d.sincronizada && d.sincronizada.checked);
+    document.getElementById("chk-sincronizada").checked = sincChecked;
+    document.getElementById("bloco-sincronizada").style.display = sincChecked ? "block":"none";
+    if(sincChecked){
+      const propAtual = estado.animal ? estado.animal.propriedade : null;
+      let doadoras = animais.filter(a=>a.categoria==="doadora" && (!propAtual || a.propriedade===propAtual));
+      const doadoraSalvaId = (d.sincronizada && d.sincronizada.doadoraId) || "";
+      if(doadoraSalvaId && !doadoras.find(x=>x.id===doadoraSalvaId)){
+        const doadoraSalva = animais.find(x=>x.id===doadoraSalvaId);
+        if(doadoraSalva) doadoras = doadoras.concat([doadoraSalva]);
+      }
+      document.getElementById("sincronizada-doadora").innerHTML = doadoras.length
+        ? doadoras.map(a=>'<option value="'+a.id+'">'+a.nome+'</option>').join("")
+        : '<option value="">Nenhuma doadora cadastrada nesta propriedade</option>';
+      document.getElementById("sincronizada-doadora").value = doadoraSalvaId;
+      document.getElementById("sincronizada-dia").value = (d.sincronizada && d.sincronizada.diaCiclo) || "";
+    }
     const indVinculada = entry.dbId ? inducoes.find(i=>i.origemHistoricoId===entry.dbId) : null;
     if(indVinculada){
       document.getElementById("chk-inducao").checked = true;
@@ -2940,11 +2985,26 @@ function abrirPerfil(id){
     const tAtiva = tPendente || (trans && trans.status==="positiva" ? trans : null);
     if(tAtiva){
       const doadoraAtual = tAtiva.doadoraId ? animais.find(x=>x.id===tAtiva.doadoraId) : null;
-      const nomeDoadora = doadoraAtual ? doadoraAtual.nome : (tAtiva.doadoraNome+" ⚠️ (não encontrada no cadastro de animais)");
+      const nomeDoadora = doadoraAtual ? doadoraAtual.nome : (tAtiva.doadoraNome+" ⚠️ (não encontrada no cadastro - toque para corrigir)");
       embriaoEl.textContent = "🧬 Com embrião de "+nomeDoadora+" × "+tAtiva.garanhao+(tAtiva.status==="pendente"?" (aguardando confirmação)":" (confirmado)");
       embriaoEl.style.display = "block";
+      embriaoEl.style.cursor = "pointer";
+      embriaoEl.onclick = function(){ abrirEdicaoLavado(tAtiva.id); };
     } else { embriaoEl.style.display = "none"; }
-  } else { embriaoEl.style.display = "none"; }
+    const sincEl = document.getElementById("perfil-sincronizada-info");
+    const historicoAnimal = historico[a.id] || [];
+    const ultimaSinc = historicoAnimal.find(h=>h.dados && h.dados.sincronizada && h.dados.sincronizada.checked);
+    if(ultimaSinc){
+      const doadoraSinc = ultimaSinc.dados.sincronizada.doadoraId ? animais.find(x=>x.id===ultimaSinc.dados.sincronizada.doadoraId) : null;
+      const nomeDoadoraSinc = doadoraSinc ? doadoraSinc.nome : "(doadora não encontrada)";
+      const dia = ultimaSinc.dados.sincronizada.diaCiclo;
+      sincEl.textContent = "🔄 Sincronizada com "+nomeDoadoraSinc+(dia?(" - Dia "+dia):"")+" em "+ultimaSinc.data;
+      sincEl.style.display = "block";
+    } else { sincEl.style.display = "none"; }
+  } else {
+    embriaoEl.style.display = "none";
+    document.getElementById("perfil-sincronizada-info").style.display = "none";
+  }
   let botoes = '<button onclick="editarAnimal()" style="width:100%;text-align:left">✏️ Editar ficha</button>';
   botoes += '<button onclick="abrirForm(\'clinico\')" style="width:100%;text-align:left">🩺 Atendimento clínico</button>';
   if(a.categoria==="garanhao"){
@@ -3032,6 +3092,13 @@ function abrirForm(tipo){
 }
 function toggleSincronizada(cb){
   document.getElementById("bloco-sincronizada").style.display = cb.checked ? "block":"none";
+  if(cb.checked){
+    const propAtual = estado.animal ? estado.animal.propriedade : null;
+    const doadoras = animais.filter(a=>a.categoria==="doadora" && (!propAtual || a.propriedade===propAtual));
+    document.getElementById("sincronizada-doadora").innerHTML = doadoras.length
+      ? doadoras.map(a=>'<option value="'+a.id+'">'+a.nome+'</option>').join("")
+      : '<option value="">Nenhuma doadora cadastrada nesta propriedade</option>';
+  }
 }
 function setMedicamentoInducaoVisualReset(){
   document.getElementById("inducao-gnrh").style.background = "#fff";
@@ -3172,7 +3239,9 @@ function atualizarInfoEmbriaoForm(){
   if(!estado.animal || estado.animal.categoria!=="receptora"){ bloco.style.display="none"; return; }
   const t = transferenciaPendente(estado.animal.id);
   if(t){
-    document.getElementById("texto-embriao-receptora").textContent = "🧬 Confirmando embrião de "+t.doadoraNome+" × "+t.garanhao+" - marque o diagnóstico gestacional abaixo para confirmar";
+    const doadoraAtual = t.doadoraId ? animais.find(x=>x.id===t.doadoraId) : null;
+    const nomeDoadora = doadoraAtual ? doadoraAtual.nome : (t.doadoraNome+" ⚠️ (não encontrada no cadastro)");
+    document.getElementById("texto-embriao-receptora").textContent = "🧬 Confirmando embrião de "+nomeDoadora+" × "+t.garanhao+" - marque o diagnóstico gestacional abaixo para confirmar";
     bloco.style.display = "block";
   } else {
     bloco.style.display = "none";
