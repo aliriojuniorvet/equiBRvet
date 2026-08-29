@@ -275,10 +275,21 @@
 </div>
 
 <div id="view-cadastro-deslocamento" style="padding:16px;display:none">
-  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Valor por km rodado (R$/km)</p>
-  <input id="desl-valor-km" oninput="atualizarCalculoDeslocamento()" type="number" step="0.01" style="margin-bottom:10px" placeholder="Ex: 1.50"/>
-  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Quilômetros percorridos</p>
-  <input id="desl-km" oninput="atualizarCalculoDeslocamento()" type="number" style="margin-bottom:10px" placeholder="0"/>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px">Forma de cobrança</p>
+  <div style="display:flex;gap:6px;margin-bottom:14px">
+    <button type="button" onclick="setModoDeslocamento('km')" id="btn-desl-modo-km" style="flex:1;border:none">Por km rodado</button>
+    <button type="button" onclick="setModoDeslocamento('fixo')" id="btn-desl-modo-fixo" style="flex:1;border:none">Valor fixo</button>
+  </div>
+  <div id="desl-bloco-km">
+    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Valor por km rodado (R$/km)</p>
+    <input id="desl-valor-km" oninput="atualizarCalculoDeslocamento()" type="number" step="0.01" style="margin-bottom:10px" placeholder="Ex: 1.50"/>
+    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Quilômetros percorridos</p>
+    <input id="desl-km" oninput="atualizarCalculoDeslocamento()" type="number" style="margin-bottom:10px" placeholder="0"/>
+  </div>
+  <div id="desl-bloco-fixo" style="display:none">
+    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Valor fixo do deslocamento (R$)</p>
+    <input id="desl-valor-fixo" oninput="atualizarCalculoDeslocamento()" type="number" step="0.01" style="margin-bottom:10px" placeholder="Ex: 100.00"/>
+  </div>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data</p>
   <input id="desl-data" type="date" style="margin-bottom:10px"/>
   <div style="background:var(--bg-accent);border-radius:10px;padding:10px;margin-bottom:14px">
@@ -773,9 +784,11 @@
     </div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+    <div><p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Idade (anos)</p><input id="cad-idade" type="number" min="0"/></div>
     <div><p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Peso (kg)</p><input id="cad-peso" type="number"/></div>
-    <div><p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Pelagem</p><input id="cad-pelagem"/></div>
   </div>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Pelagem</p>
+  <input id="cad-pelagem" style="margin-bottom:10px"/>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Número (se houver)</p>
   <input id="cad-numero" style="margin-bottom:10px"/>
   <button onclick="salvarAnimal()" style="width:100%;background:var(--fill-accent);color:var(--on-accent);border:none;margin-bottom:10px">Salvar animal</button>
@@ -1870,6 +1883,7 @@ function prepCadastroAnimal(){
   estado.animalEditando = null;
   document.getElementById("cad-nome").value = "";
   document.getElementById("cad-raca").value = "";
+  document.getElementById("cad-idade").value = "";
   document.getElementById("cad-peso").value = "";
   document.getElementById("cad-pelagem").value = "";
   document.getElementById("cad-numero").value = "";
@@ -1889,6 +1903,7 @@ function editarAnimal(){
   estado.animalEditando = a.id;
   document.getElementById("cad-nome").value = a.nome;
   document.getElementById("cad-raca").value = a.raca || "";
+  document.getElementById("cad-idade").value = a.idade || "";
   document.getElementById("cad-peso").value = a.peso || "";
   document.getElementById("cad-pelagem").value = a.pelagem || "";
   document.getElementById("cad-numero").value = a.numero || "";
@@ -1915,24 +1930,25 @@ async function salvarAnimal(){
     radios.forEach(r=>{ if(r.checked) categoria = r.value; });
   }
   const raca = document.getElementById("cad-raca").value;
+  const idade = document.getElementById("cad-idade").value;
   const peso = document.getElementById("cad-peso").value;
   const pelagem = document.getElementById("cad-pelagem").value;
   const numero = document.getElementById("cad-numero").value;
   if(estado.animalEditando){
     const a = animais.find(x=>x.id===estado.animalEditando);
     if(a){
-      a.nome = nome; a.raca = raca; a.categoria = categoria; a.peso = peso; a.pelagem = pelagem; a.numero = numero;
+      a.nome = nome; a.raca = raca; a.categoria = categoria; a.idade = idade; a.peso = peso; a.pelagem = pelagem; a.numero = numero;
       await offlineUpdate("animais", a.id, {
-        nome:nome, raca:raca, categoria:categoria, peso:peso, pelagem:pelagem, numero:numero
+        nome:nome, raca:raca, categoria:categoria, idade:idade, peso:peso, pelagem:pelagem, numero:numero
       });
     }
   } else {
     if(!usuarioAtualId){ alert("Sessão expirada, faça login novamente."); setView("login"); return; }
     const novoId = gerarUUID();
     await offlineInsert("animais", {
-      id:novoId, user_id:usuarioAtualId, propriedade_id:estado.propriedade, nome:nome, raca:raca, categoria:categoria, peso:peso, pelagem:pelagem, numero:numero, gestante:false
+      id:novoId, user_id:usuarioAtualId, propriedade_id:estado.propriedade, nome:nome, raca:raca, categoria:categoria, idade:idade, peso:peso, pelagem:pelagem, numero:numero, gestante:false
     });
-    animais.push({id:novoId, nome:nome, propriedade:estado.propriedade, raca:raca, categoria:categoria, peso:peso, pelagem:pelagem, numero:numero});
+    animais.push({id:novoId, nome:nome, propriedade:estado.propriedade, raca:raca, categoria:categoria, idade:idade, peso:peso, pelagem:pelagem, numero:numero});
   }
   voltar();
 }
@@ -2188,14 +2204,14 @@ async function excluirLancamento(id, idx, ev){
 function renderDeslocamento(id){
   const dList = deslocamentos[id] || [];
   const totalValor = dList.reduce((s,d)=>s+d.valor,0);
-  const totalKm = dList.reduce((s,d)=>s+d.km,0);
+  const totalKm = dList.reduce((s,d)=>s+(d.km||0),0);
   document.getElementById("desl-total-valor").textContent = "R$ "+totalValor.toFixed(2);
   document.getElementById("desl-total-km").textContent = totalKm+" km";
   document.getElementById("msg-sem-deslocamento").style.display = dList.length ? "none":"block";
   document.getElementById("lista-deslocamento").innerHTML = dList.map((d,i)=>
     '<div onclick="editarDeslocamento(\''+id+'\','+i+')" style="cursor:pointer;background:var(--surface-1);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">'+
-    '<div><p style="font-size:13px;font-weight:500;margin:0">R$ '+d.valor.toFixed(2)+'</p><p style="font-size:11px;color:var(--text-muted);margin:0">'+d.data+' - R$ '+d.valorKm.toFixed(2)+'/km</p></div>'+
-    '<div style="display:flex;align-items:center;gap:8px"><p style="font-size:12px;color:var(--text-secondary);margin:0">'+d.km+' km</p>'+
+    '<div><p style="font-size:13px;font-weight:500;margin:0">R$ '+d.valor.toFixed(2)+'</p><p style="font-size:11px;color:var(--text-muted);margin:0">'+d.data+' - '+(d.modo==="fixo" ? "Valor fixo" : ("R$ "+(d.valorKm||0).toFixed(2)+"/km"))+'</p></div>'+
+    '<div style="display:flex;align-items:center;gap:8px"><p style="font-size:12px;color:var(--text-secondary);margin:0">'+(d.modo==="fixo" ? "-" : (d.km+" km"))+'</p>'+
     '<span onclick="excluirDeslocamento(\''+id+'\','+i+',event)" style="font-size:14px;color:var(--text-danger);cursor:pointer">🗑️</span></div></div>'
   ).join("");
 }
@@ -2207,10 +2223,25 @@ async function excluirDeslocamento(id, idx, ev){
   deslocamentos[id].splice(idx,1);
   renderDeslocamento(id);
 }
+function setModoDeslocamento(modo){
+  estado.modoDeslocamento = modo;
+  document.getElementById("desl-bloco-km").style.display = modo==="km" ? "block":"none";
+  document.getElementById("desl-bloco-fixo").style.display = modo==="fixo" ? "block":"none";
+  document.getElementById("btn-desl-modo-km").style.background = modo==="km" ? "var(--fill-accent)":"#fff";
+  document.getElementById("btn-desl-modo-km").style.color = modo==="km" ? "var(--on-accent)":"var(--text-primary)";
+  document.getElementById("btn-desl-modo-fixo").style.background = modo==="fixo" ? "var(--fill-accent)":"#fff";
+  document.getElementById("btn-desl-modo-fixo").style.color = modo==="fixo" ? "var(--on-accent)":"var(--text-primary)";
+  atualizarCalculoDeslocamento();
+}
 function atualizarCalculoDeslocamento(){
-  const valorKm = parseFloat(document.getElementById("desl-valor-km").value)||0;
-  const km = parseFloat(document.getElementById("desl-km").value)||0;
-  const total = valorKm*km;
+  let total;
+  if(estado.modoDeslocamento==="fixo"){
+    total = parseFloat(document.getElementById("desl-valor-fixo").value)||0;
+  } else {
+    const valorKm = parseFloat(document.getElementById("desl-valor-km").value)||0;
+    const km = parseFloat(document.getElementById("desl-km").value)||0;
+    total = valorKm*km;
+  }
   document.getElementById("calc-desl-total").textContent = "R$ "+total.toFixed(2);
 }
 function setStatusLancamento(v){
@@ -2319,8 +2350,9 @@ function prepCadastroDeslocamento(){
   estado.deslocamentoEditando = null;
   document.getElementById("desl-valor-km").value = "";
   document.getElementById("desl-km").value = "";
+  document.getElementById("desl-valor-fixo").value = "";
   document.getElementById("desl-data").value = "";
-  atualizarCalculoDeslocamento();
+  setModoDeslocamento("km");
   setView("cadastro-deslocamento");
 }
 function editarDeslocamento(propId, idx){
@@ -2328,17 +2360,25 @@ function editarDeslocamento(propId, idx){
   if(!d) return;
   estado.propriedadeEditando = propId;
   estado.deslocamentoEditando = {propId:propId, idx:idx};
-  document.getElementById("desl-valor-km").value = d.valorKm;
-  document.getElementById("desl-km").value = d.km;
+  document.getElementById("desl-valor-km").value = d.valorKm||"";
+  document.getElementById("desl-km").value = d.km||"";
+  document.getElementById("desl-valor-fixo").value = d.valorFixo||"";
   document.getElementById("desl-data").value = dataBRparaISO(d.data) || "";
-  atualizarCalculoDeslocamento();
+  setModoDeslocamento(d.modo||"km");
   setView("cadastro-deslocamento");
 }
 async function salvarDeslocamento(){
   const id = estado.propriedadeEditando;
-  const valorKm = parseFloat(document.getElementById("desl-valor-km").value)||0;
-  const km = parseFloat(document.getElementById("desl-km").value)||0;
-  const valor = valorKm*km;
+  const modo = estado.modoDeslocamento||"km";
+  let valorKm = 0, km = 0, valorFixo = 0, valor = 0;
+  if(modo==="fixo"){
+    valorFixo = parseFloat(document.getElementById("desl-valor-fixo").value)||0;
+    valor = valorFixo;
+  } else {
+    valorKm = parseFloat(document.getElementById("desl-valor-km").value)||0;
+    km = parseFloat(document.getElementById("desl-km").value)||0;
+    valor = valorKm*km;
+  }
   const dataInput = document.getElementById("desl-data").value;
   const data = dataInput ? dataInput.split("-").reverse().join("/") : "-";
   if(!deslocamentos[id]) deslocamentos[id] = [];
@@ -2347,9 +2387,9 @@ async function salvarDeslocamento(){
     const { propId, idx } = estado.deslocamentoEditando;
     const existente = (deslocamentos[propId]||[])[idx];
     if(existente){
-      existente.valorKm = valorKm; existente.km = km; existente.valor = valor; existente.data = data;
+      existente.modo = modo; existente.valorKm = valorKm; existente.km = km; existente.valorFixo = valorFixo; existente.valor = valor; existente.data = data;
       if(existente.dbId){
-        await offlineUpdate("deslocamentos", existente.dbId, { valor_km:valorKm, km:km, valor:valor, data:data });
+        await offlineUpdate("deslocamentos", existente.dbId, { modo:modo, valor_km:valorKm, km:km, valor_fixo:valorFixo, valor:valor, data:data });
       }
     }
     estado.deslocamentoEditando = null;
@@ -2359,11 +2399,11 @@ async function salvarDeslocamento(){
     return;
   }
 
-  const novo = {valorKm:valorKm, km:km, valor:valor, data:data};
+  const novo = {modo:modo, valorKm:valorKm, km:km, valorFixo:valorFixo, valor:valor, data:data};
   if(usuarioAtualId){
     const novoId = gerarUUID();
     await offlineInsert("deslocamentos", {
-      id:novoId, user_id:usuarioAtualId, propriedade_id:id, valor_km:valorKm, km:km, valor:valor, data:data
+      id:novoId, user_id:usuarioAtualId, propriedade_id:id, modo:modo, valor_km:valorKm, km:km, valor_fixo:valorFixo, valor:valor, data:data
     });
     novo.dbId = novoId;
   }
@@ -2967,6 +3007,7 @@ function abrirPerfil(id){
   document.getElementById("perfil-nome").textContent = a.nome;
   let det = categorias[a.categoria];
   if(a.raca) det += " - "+a.raca;
+  if(a.idade) det += " - "+a.idade+(a.idade==1?" ano":" anos");
   if(a.peso) det += " - "+a.peso+"kg";
   if(a.pelagem) det += " - "+a.pelagem;
   document.getElementById("perfil-detalhes").textContent = det;
@@ -3870,7 +3911,7 @@ function abrirRelatorioDeslocamentoProp(){
   const id = estado.relatorioPropriedade;
   const p = propriedades.find(x=>x.id===id);
   const dList = deslocamentos[id]||[];
-  const totalKm = dList.reduce((s,d)=>s+d.km,0);
+  const totalKm = dList.reduce((s,d)=>s+(d.km||0),0);
   const totalValor = dList.reduce((s,d)=>s+d.valor,0);
   const items = dList.map(d=>({label:d.data, value:d.km, displayValue:d.km+" km · R$ "+d.valor.toFixed(0), color:"var(--fill-accent)"}));
   const html =
@@ -4336,7 +4377,7 @@ async function carregarDadosIniciais(){
   const ans = await carregarTabela("animais");
   animais.length = 0;
   ans.filter(a=>a.user_id===uid).forEach(a=>animais.push({
-    id:a.id, nome:a.nome, raca:a.raca, categoria:a.categoria, peso:a.peso, pelagem:a.pelagem, numero:a.numero,
+    id:a.id, nome:a.nome, raca:a.raca, categoria:a.categoria, idade:a.idade, peso:a.peso, pelagem:a.pelagem, numero:a.numero,
     gestante:a.gestante, foto:a.foto_url, propriedade:a.propriedade_id
   }));
 
@@ -4382,7 +4423,7 @@ async function carregarDadosIniciais(){
   Object.keys(deslocamentos).forEach(k=>delete deslocamentos[k]);
   desl.filter(d=>d.user_id===uid).forEach(d=>{
     if(!deslocamentos[d.propriedade_id]) deslocamentos[d.propriedade_id] = [];
-    deslocamentos[d.propriedade_id].push({dbId:d.id, valorKm:d.valor_km, km:d.km, valor:d.valor, data:d.data});
+    deslocamentos[d.propriedade_id].push({dbId:d.id, modo:d.modo||"km", valorKm:d.valor_km, km:d.km, valorFixo:d.valor_fixo, valor:d.valor, data:d.data});
   });
 
   propriedades.forEach(p=>{
