@@ -262,13 +262,11 @@
 <div id="view-cadastro-lancamento" style="padding:16px;display:none">
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Serviço do catálogo (opcional)</p>
   <select id="lanc-servico" onchange="preencherServicoLancamento()" style="margin-bottom:10px"></select>
-  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Deslocamento em aberto (opcional)</p>
-  <select id="lanc-deslocamento" onchange="preencherDeslocamentoLancamento()" style="margin-bottom:10px"></select>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Animal (opcional)</p>
   <select id="lanc-animal" style="margin-bottom:10px"></select>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Descrição do procedimento</p>
   <input id="lanc-descricao" style="margin-bottom:10px" placeholder="Ex: Exame reprodutivo mensal"/>
-  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Valor (R$)</p>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Valor pago pelo proprietário (R$)</p>
   <input id="lanc-valor" type="number" style="margin-bottom:10px" placeholder="0"/>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data</p>
   <input id="lanc-data" type="date" style="margin-bottom:10px"/>
@@ -277,6 +275,8 @@
     <button onclick="setStatusLancamento('pago')" id="lanc-status-pago" style="flex:1;border:none">Pago</button>
     <button onclick="setStatusLancamento('pendente')" id="lanc-status-pendente" style="flex:1;border:none">Pendente</button>
   </div>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Este pagamento cobre quais deslocamentos em aberto? (opcional)</p>
+  <div id="lanc-deslocamentos-lista" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;background:var(--surface-1);border-radius:10px;padding:10px"></div>
   <button onclick="salvarLancamento()" style="width:100%;background:var(--fill-accent);color:var(--on-accent);border:none">Salvar lançamento</button>
 </div>
 
@@ -370,8 +370,8 @@
         <p style="font-size:12px;color:var(--text-secondary);margin:0" id="perfil-detalhes">-</p>
       </div>
     </div>
-    <div id="perfil-ovulacao-info" style="display:none;text-align:center;background:var(--fill-accent);border-radius:8px;padding:10px;margin:8px 0 0">
-      <p style="font-size:11px;color:var(--on-accent);opacity:0.85;margin:0">🥚 Ovulação ativa</p>
+    <div id="perfil-ovulacao-info" onclick="confirmarRemoverOvulacao()" style="cursor:pointer;display:none;text-align:center;background:var(--fill-accent);border-radius:8px;padding:10px;margin:8px 0 0">
+      <p style="font-size:11px;color:var(--on-accent);opacity:0.85;margin:0">🥚 Ovulação ativa - toque para remover</p>
       <p id="perfil-ovulacao-dtexto" style="font-size:24px;font-weight:700;color:var(--on-accent);margin:2px 0 0">D0</p>
       <p id="perfil-ovulacao-detalhe" style="font-size:11px;color:var(--on-accent);opacity:0.85;margin:2px 0 0"></p>
     </div>
@@ -601,7 +601,7 @@
   </div>
 
   <div id="bloco-marcar-ovulacao-wrapper">
-    <button type="button" id="btn-marcar-ovulacao" onclick="toggleMarcarOvulacao()" style="width:100%;margin-bottom:8px;text-align:left">🥚 Marcar Ovulação</button>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px"><input type="checkbox" id="chk-marcar-ovulacao" onchange="toggleMarcarOvulacao(this)" style="width:auto"/>Marcar Ovulação</label>
     <div id="bloco-marcar-ovulacao" style="display:none;background:var(--bg-accent);border-radius:10px;padding:10px;margin-bottom:10px">
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data da ovulação (D0)</p>
       <input id="ovulacao-data" type="date" style="margin-bottom:8px"/>
@@ -1452,19 +1452,27 @@ function abrirRetorno(animalId){
 }
 function renderOvulacoes(){
   const bloco = document.getElementById("bloco-ovulacoes");
-  const ativas = ovulacoes.filter(o=>o.status==="ativa" && !o.espelhoDe && !o.dgRealizado);
+  const ativas = ovulacoes.filter(o=>{
+    if(o.status!=="ativa" || o.espelhoDe || o.dgRealizado) return false;
+    const a = animais.find(x=>x.id===o.animalId);
+    return a && a.categoria!=="matriz";
+  });
   if(!ativas.length){ bloco.style.display = "none"; return; }
   bloco.style.display = "block";
   document.getElementById("lista-ovulacoes").innerHTML = ativas.map(o=>{
     const d = diaD(o.data);
+    const aTop = animais.find(x=>x.id===o.animalId);
+    const catTop = aTop ? (categorias[aTop.categoria]||aTop.categoria) : "";
     const espelhos = ovulacoes.filter(x=>x.espelhoDe===o.id && x.status==="ativa" && !x.dgRealizado);
     const linhaReceptoras = espelhos.map(e=>{
       const dEsp = diaD(e.data);
-      return '<p onclick="abrirPerfil(\''+e.animalId+'\')" style="cursor:pointer;font-size:12px;color:var(--text-accent);margin:4px 0 0">🔗 Receptora: '+e.animalNome+' - <strong>D'+dEsp+'</strong></p>';
+      const aEsp = animais.find(x=>x.id===e.animalId);
+      const catEsp = aEsp ? (categorias[aEsp.categoria]||aEsp.categoria) : "Receptora";
+      return '<p onclick="abrirPerfil(\''+e.animalId+'\')" style="cursor:pointer;font-size:12px;color:var(--text-accent);margin:4px 0 0">🔗 '+catEsp+': '+e.animalNome+' - <strong>D'+dEsp+'</strong></p>';
     }).join("");
     return '<div style="background:var(--surface-1);border-left:4px solid var(--fill-accent);border-radius:10px;padding:10px 12px">'+
       '<div onclick="abrirPerfil(\''+o.animalId+'\')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">'+
-      '<p style="font-size:13px;font-weight:500;margin:0">'+o.animalNome+'</p>'+
+      '<p style="font-size:13px;font-weight:500;margin:0">'+catTop+': '+o.animalNome+'</p>'+
       '<span style="font-size:16px;font-weight:700;color:var(--text-accent)">D'+d+'</span>'+
       '</div>'+
       linhaReceptoras+
@@ -1803,6 +1811,15 @@ async function registrarResultadosReproducao(){
       ia_negativos_count:s.iaNegativosCount||0, te_negativos_count:s.teNegativosCount||0
     });
   }
+}
+async function confirmarRemoverOvulacao(){
+  if(!estado.animal) return;
+  const ativa = ovulacaoAtiva(estado.animal.id);
+  if(!ativa) return;
+  if(!confirm("Deseja realmente excluir a notificação de ovulação (D"+diaD(ativa.data)+") de "+estado.animal.nome+"?")) return;
+  await fecharOvulacao(ativa.id, false);
+  abrirPerfil(estado.animal.id);
+  renderOvulacoes();
 }
 async function fecharOvulacao(ovulacaoId, fecharEspelhos){
   if(fecharEspelhos===undefined) fecharEspelhos = true;
@@ -2293,7 +2310,9 @@ function toggleLavadoDetalhe(i){
 }
 function renderFinanceiro(id){
   const fList = financeiro[id] || [];
-  const totalFaturado = fList.reduce((s,f)=>s+f.valor,0);
+  const deslocList = deslocamentos[id] || [];
+  const totalDeslocEmAberto = deslocList.filter(d=>!d.faturado).reduce((s,d)=>s+d.valor,0);
+  const totalFaturado = fList.reduce((s,f)=>s+f.valor,0) + totalDeslocEmAberto;
   const totalRecebido = fList.filter(f=>f.status==="pago").reduce((s,f)=>s+f.valor,0);
   const totalAberto = totalFaturado - totalRecebido;
   document.getElementById("fin-total-faturado").textContent = "R$ "+totalFaturado.toFixed(0);
@@ -2376,6 +2395,18 @@ function setStatusLancamento(v){
   document.getElementById("lanc-status-pendente").style.background = v==="pendente" ? "var(--bg-accent)":"#fff";
   document.getElementById("lanc-status-pendente").style.color = v==="pendente" ? "var(--text-accent)":"var(--text-primary)";
 }
+function renderChecklistDeslocamentos(propId, jaMarcados){
+  const deslocAbertos = (deslocamentos[propId]||[]).filter(d=>!d.faturado);
+  const cont = document.getElementById("lanc-deslocamentos-lista");
+  if(!deslocAbertos.length){
+    cont.innerHTML = '<p style="font-size:12px;color:var(--text-muted);margin:0">Nenhum deslocamento em aberto nesta propriedade.</p>';
+    return;
+  }
+  cont.innerHTML = deslocAbertos.map((d,i)=>
+    '<label style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" class="lanc-desloc-check" data-idx="'+i+'" style="width:auto" '+((jaMarcados||[]).indexOf(i)>-1?"checked":"")+'/>'+
+    d.data+' - R$ '+d.valor.toFixed(2)+(d.modo==="fixo"?" (fixo)":" ("+(d.km||0)+"km)")+'</label>'
+  ).join("");
+}
 function prepCadastroLancamento(){
   estado.lancamentoEditando = null;
   document.getElementById("lanc-descricao").value = "";
@@ -2383,15 +2414,12 @@ function prepCadastroLancamento(){
   document.getElementById("lanc-data").value = "";
   document.getElementById("lanc-servico").innerHTML = '<option value="">Nenhum / personalizado</option>' +
     servicos.map(s=>'<option value="'+s.id+'">'+s.nome+' - R$ '+s.preco.toFixed(0)+'</option>').join("");
-  const deslocAbertos = (deslocamentos[estado.propriedadeEditando]||[]).filter(d=>!d.faturado);
-  document.getElementById("lanc-deslocamento").innerHTML = '<option value="">Nenhum</option>' +
-    deslocAbertos.map((d,i)=>'<option value="'+i+'">'+d.data+' - R$ '+d.valor.toFixed(2)+(d.modo==="fixo"?" (fixo)":" ("+d.km+"km)")+'</option>').join("");
   const animaisProp = animais.filter(a=>a.propriedade===estado.propriedadeEditando);
   document.getElementById("lanc-animal").innerHTML = '<option value="">Nenhum específico</option>' +
     animaisProp.map(a=>'<option value="'+a.id+'">'+a.nome+' - '+categorias[a.categoria]+'</option>').join("");
   document.getElementById("lanc-servico").value = "";
-  document.getElementById("lanc-deslocamento").value = "";
   document.getElementById("lanc-animal").value = "";
+  renderChecklistDeslocamentos(estado.propriedadeEditando, []);
   setStatusLancamento("pendente");
   setView("cadastro-lancamento");
 }
@@ -2402,8 +2430,6 @@ function editarLancamento(propId, idx){
   estado.lancamentoEditando = {propId:propId, idx:idx};
   document.getElementById("lanc-servico").innerHTML = '<option value="">Nenhum / personalizado</option>' +
     servicos.map(s=>'<option value="'+s.id+'">'+s.nome+' - R$ '+s.preco.toFixed(0)+'</option>').join("");
-  document.getElementById("lanc-deslocamento").innerHTML = '<option value="">Nenhum</option>';
-  document.getElementById("lanc-deslocamento").value = "";
   const animaisProp = animais.filter(a=>a.propriedade===propId);
   document.getElementById("lanc-animal").innerHTML = '<option value="">Nenhum específico</option>' +
     animaisProp.map(a=>'<option value="'+a.id+'">'+a.nome+' - '+categorias[a.categoria]+'</option>').join("");
@@ -2413,6 +2439,7 @@ function editarLancamento(propId, idx){
   document.getElementById("lanc-valor").value = f.valor || "";
   document.getElementById("lanc-data").value = dataBRparaISO(f.data) || "";
   setStatusLancamento(f.status || "pendente");
+  renderChecklistDeslocamentos(propId, []);
   setView("cadastro-lancamento");
 }
 function preencherServicoLancamento(){
@@ -2423,20 +2450,9 @@ function preencherServicoLancamento(){
     document.getElementById("lanc-valor").value = s.preco;
   }
 }
-function preencherDeslocamentoLancamento(){
-  const idx = document.getElementById("lanc-deslocamento").value;
-  if(idx===""){ return; }
-  const deslocAbertos = (deslocamentos[estado.propriedadeEditando]||[]).filter(d=>!d.faturado);
-  const d = deslocAbertos[parseInt(idx,10)];
-  if(d){
-    document.getElementById("lanc-descricao").value = "Deslocamento - "+d.data;
-    document.getElementById("lanc-valor").value = d.valor;
-  }
-}
 async function salvarLancamento(){
   const id = estado.propriedadeEditando;
   const servicoId = document.getElementById("lanc-servico").value;
-  const deslocIdx = document.getElementById("lanc-deslocamento").value;
   const animalId = document.getElementById("lanc-animal").value;
   const animalSel = animalId ? animais.find(a=>a.id===animalId) : null;
   let descricao = document.getElementById("lanc-descricao").value || "Procedimento";
@@ -2446,11 +2462,10 @@ async function salvarLancamento(){
   const status = estado.statusLancamento||"pendente";
   if(!financeiro[id]) financeiro[id] = [];
 
-  let deslocamentoSel = null;
-  if(deslocIdx!==""){
-    const deslocAbertos = (deslocamentos[id]||[]).filter(d=>!d.faturado);
-    deslocamentoSel = deslocAbertos[parseInt(deslocIdx,10)] || null;
-  }
+  const deslocAbertos = (deslocamentos[id]||[]).filter(d=>!d.faturado);
+  const deslocamentosMarcados = Array.from(document.querySelectorAll(".lanc-desloc-check:checked"))
+    .map(el=>deslocAbertos[parseInt(el.getAttribute("data-idx"),10)])
+    .filter(Boolean);
 
   if(estado.lancamentoEditando){
     const { propId, idx } = estado.lancamentoEditando;
@@ -2464,6 +2479,10 @@ async function salvarLancamento(){
           servico_id:servicoId||null, animal_id:animalId||null, animal_nome:existente.animalNome
         });
       }
+    }
+    for(const d of deslocamentosMarcados){
+      d.faturado = true;
+      if(d.dbId) await offlineUpdate("deslocamentos", d.dbId, { faturado:true });
     }
     estado.lancamentoEditando = null;
     renderFinanceiro(propId);
@@ -2482,11 +2501,9 @@ async function salvarLancamento(){
     novo.dbId = novoId;
   }
   financeiro[id].push(novo);
-  if(deslocamentoSel){
-    deslocamentoSel.faturado = true;
-    if(deslocamentoSel.dbId){
-      await offlineUpdate("deslocamentos", deslocamentoSel.dbId, { faturado:true });
-    }
+  for(const d of deslocamentosMarcados){
+    d.faturado = true;
+    if(d.dbId) await offlineUpdate("deslocamentos", d.dbId, { faturado:true });
   }
   if(servicoId){
     const s = servicos.find(x=>x.id===servicoId);
@@ -2734,10 +2751,8 @@ async function salvarEdicaoGestacao(){
   if(g.status==="perdida"){
     g.tipoPerda = document.getElementById("gest-edit-tipo-perda").value;
     g.dataPerda = dataISOparaBR(document.getElementById("gest-edit-data-perda").value) || dataHojeBR();
-    if(g.animalId){ const a = animais.find(x=>x.id===g.animalId); if(a) a.gestante = false; }
   } else {
     g.tipoPerda = null; g.dataPerda = null;
-    if(g.animalId){ const a = animais.find(x=>x.id===g.animalId); if(a) a.gestante = true; }
   }
   if(g.id){
     await offlineUpdate("gestacoes", g.id, {
@@ -2755,9 +2770,7 @@ async function salvarEdicaoGestacao(){
     if(t){ t.dataLavado = g.dataInseminacao; }
     await offlineUpdate("transferencias", g.transferenciaId, { data_lavado: g.dataInseminacao });
   }
-  if(g.animalId){
-    await offlineUpdate("animais", g.animalId, { gestante: g.status!=="perdida" });
-  }
+  await sincronizarGestantesComGestacoes();
   if(g.status==="perdida" && statusAnterior!=="perdida"){
     await ajustarNegativoPorPerda(id, g.categoria, 1);
     await sincronizarStatusVinculo(g, "perdida");
@@ -2787,14 +2800,7 @@ async function excluirGestacao(){
   }
   if(g && g.id){ await offlineDelete("gestacoes", g.id); }
   gestacoes[id].splice(estado.gestacaoEditando,1);
-  if(g && g.animalId){
-    const a = animais.find(x=>x.id===g.animalId);
-    const aindaAtiva = (gestacoes[id]||[]).some(x=>x.animalId===g.animalId && x.status!=="perdida");
-    if(a && !aindaAtiva){
-      a.gestante = false;
-      await offlineUpdate("animais", a.id, { gestante:false });
-    }
-  }
+  await sincronizarGestantesComGestacoes();
   voltar();
   setPropTab("gestacoes");
   renderListaGestacoesFiltrada();
@@ -3045,6 +3051,7 @@ function abrirHistoricoDetalhe(animalId, idx){
     }
     const ovulChecked = !!(d.ovulacao && d.ovulacao.checked);
     estado.marcarOvulacaoChecked = ovulChecked;
+    document.getElementById("chk-marcar-ovulacao").checked = ovulChecked;
     document.getElementById("bloco-marcar-ovulacao").style.display = ovulChecked ? "block":"none";
     document.getElementById("ovulacao-data").value = ovulChecked ? (dataBRparaISO(d.ovulacao.data)||"") : "";
     document.getElementById("ovulacao-hora").value = ovulChecked ? (d.ovulacao.hora||"") : "";
@@ -3261,6 +3268,7 @@ function abrirForm(tipo){
     document.getElementById("chk-sincronizada").checked = false;
     document.getElementById("bloco-sincronizada").style.display = "none";
     document.getElementById("bloco-doadora").style.display = estado.animal.categoria==="doadora" ? "block":"none";
+    document.getElementById("chk-marcar-ovulacao").checked = false;
     document.getElementById("bloco-marcar-ovulacao").style.display = "none";
     document.getElementById("ovulacao-data").value = "";
     document.getElementById("ovulacao-hora").value = "";
@@ -3353,12 +3361,10 @@ function diaD(dataOvulacaoBR){
   const hoje = new Date(); hoje.setHours(0,0,0,0); dataOv.setHours(0,0,0,0);
   return Math.round((hoje-dataOv)/(1000*60*60*24));
 }
-function toggleMarcarOvulacao(){
-  const bloco = document.getElementById("bloco-marcar-ovulacao");
-  const abrindo = bloco.style.display==="none";
-  bloco.style.display = abrindo ? "block":"none";
-  estado.marcarOvulacaoChecked = abrindo;
-  if(abrindo){
+function toggleMarcarOvulacao(cb){
+  document.getElementById("bloco-marcar-ovulacao").style.display = cb.checked ? "block":"none";
+  estado.marcarOvulacaoChecked = cb.checked;
+  if(cb.checked){
     if(!document.getElementById("ovulacao-data").value){
       document.getElementById("ovulacao-data").value = new Date().toISOString().slice(0,10);
     }
@@ -3367,6 +3373,10 @@ function toggleMarcarOvulacao(){
       const ativa = ovulacaoAtiva(estado.animal.id);
       aviso.textContent = ativa ? ("⚠️ Já existe uma ovulação ativa (D"+diaD(ativa.data)+") - marcar de novo vai substituir a anterior.") : "";
     }
+  } else {
+    document.getElementById("ovulacao-data").value = "";
+    document.getElementById("ovulacao-hora").value = "";
+    document.getElementById("ovulacao-ativa-aviso").textContent = "";
   }
 }
 function setMedicamentoInducao(v){
@@ -4735,7 +4745,23 @@ async function carregarDadosIniciais(){
     data:o.data_ovulacao, hora:o.hora_ovulacao, status:o.status, espelhoDe:o.espelho_de||null, dgRealizado:o.dg_realizado||false, origemHistoricoId:o.origem_historico_id||null
   }));
 
+  await sincronizarGestantesComGestacoes();
   atualizarIndicadorSync();
+}
+async function sincronizarGestantesComGestacoes(){
+  const propIds = Object.keys(gestacoes);
+  for(const propId of propIds){
+    const ativos = {};
+    (gestacoes[propId]||[]).filter(g=>g.status!=="perdida" && g.animalId).forEach(g=>{ ativos[g.animalId] = true; });
+    const animaisProp = animais.filter(a=>a.propriedade===propId);
+    for(const a of animaisProp){
+      const deveriaSerGestante = !!ativos[a.id];
+      if(!!a.gestante !== deveriaSerGestante){
+        a.gestante = deveriaSerGestante;
+        await offlineUpdate("animais", a.id, { gestante: deveriaSerGestante });
+      }
+    }
+  }
 }
 
 renderEventos();
