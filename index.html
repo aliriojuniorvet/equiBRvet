@@ -103,7 +103,7 @@
     </div>
   </div>
   <div id="bloco-ovulacoes" style="display:none;margin-bottom:16px">
-    <p style="font-size:13px;font-weight:500;color:var(--text-accent);margin:0 0 8px">🥚 Ovulações ativas (contagem D)</p>
+    <p style="font-size:13px;font-weight:500;color:var(--text-accent);margin:0 0 8px">Ovulações ativas (contagem D)</p>
     <div style="display:flex;flex-direction:column;gap:8px" id="lista-ovulacoes"></div>
   </div>
   <div id="bloco-inducoes" style="display:none;margin-bottom:16px">
@@ -266,17 +266,19 @@
   <select id="lanc-animal" style="margin-bottom:10px"></select>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Descrição do procedimento</p>
   <input id="lanc-descricao" style="margin-bottom:10px" placeholder="Ex: Exame reprodutivo mensal"/>
-  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Valor pago pelo proprietário (R$)</p>
-  <input id="lanc-valor" type="number" style="margin-bottom:10px" placeholder="0"/>
-  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data</p>
-  <input id="lanc-data" type="date" style="margin-bottom:10px"/>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Status</p>
   <div style="display:flex;gap:6px;margin-bottom:14px">
     <button onclick="setStatusLancamento('pago')" id="lanc-status-pago" style="flex:1;border:none">Pago</button>
     <button onclick="setStatusLancamento('pendente')" id="lanc-status-pendente" style="flex:1;border:none">Pendente</button>
   </div>
-  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Este pagamento cobre quais deslocamentos em aberto? (opcional)</p>
-  <div id="lanc-deslocamentos-lista" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;background:var(--surface-1);border-radius:10px;padding:10px"></div>
+  <p id="lanc-valor-label" style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Valor a ser pago (R$)</p>
+  <input id="lanc-valor" type="number" style="margin-bottom:10px" placeholder="0"/>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data</p>
+  <input id="lanc-data" type="date" style="margin-bottom:10px"/>
+  <div id="lanc-bloco-deslocamentos">
+    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Este pagamento cobre quais deslocamentos em aberto? (opcional)</p>
+    <div id="lanc-deslocamentos-lista" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;background:var(--surface-1);border-radius:10px;padding:10px"></div>
+  </div>
   <button onclick="salvarLancamento()" style="width:100%;background:var(--fill-accent);color:var(--on-accent);border:none">Salvar lançamento</button>
 </div>
 
@@ -371,7 +373,7 @@
       </div>
     </div>
     <div id="perfil-ovulacao-info" onclick="confirmarRemoverOvulacao()" style="cursor:pointer;display:none;text-align:center;background:var(--fill-accent);border-radius:8px;padding:10px;margin:8px 0 0">
-      <p style="font-size:11px;color:var(--on-accent);opacity:0.85;margin:0">🥚 Ovulação ativa - toque para remover</p>
+      <p style="font-size:11px;color:var(--on-accent);opacity:0.85;margin:0">Ovulação ativa - toque para remover</p>
       <p id="perfil-ovulacao-dtexto" style="font-size:24px;font-weight:700;color:var(--on-accent);margin:2px 0 0">D0</p>
       <p id="perfil-ovulacao-detalhe" style="font-size:11px;color:var(--on-accent);opacity:0.85;margin:2px 0 0"></p>
     </div>
@@ -2394,6 +2396,8 @@ function setStatusLancamento(v){
   document.getElementById("lanc-status-pago").style.color = v==="pago" ? "var(--text-success)":"var(--text-primary)";
   document.getElementById("lanc-status-pendente").style.background = v==="pendente" ? "var(--bg-accent)":"#fff";
   document.getElementById("lanc-status-pendente").style.color = v==="pendente" ? "var(--text-accent)":"var(--text-primary)";
+  document.getElementById("lanc-valor-label").textContent = v==="pago" ? "Valor pago pelo proprietário (R$)" : "Valor a ser pago (R$)";
+  document.getElementById("lanc-bloco-deslocamentos").style.display = v==="pago" ? "block":"none";
 }
 function renderChecklistDeslocamentos(propId, jaMarcados){
   const deslocAbertos = (deslocamentos[propId]||[]).filter(d=>!d.faturado);
@@ -2463,9 +2467,11 @@ async function salvarLancamento(){
   if(!financeiro[id]) financeiro[id] = [];
 
   const deslocAbertos = (deslocamentos[id]||[]).filter(d=>!d.faturado);
-  const deslocamentosMarcados = Array.from(document.querySelectorAll(".lanc-desloc-check:checked"))
-    .map(el=>deslocAbertos[parseInt(el.getAttribute("data-idx"),10)])
-    .filter(Boolean);
+  const deslocamentosMarcados = status==="pago"
+    ? Array.from(document.querySelectorAll(".lanc-desloc-check:checked"))
+        .map(el=>deslocAbertos[parseInt(el.getAttribute("data-idx"),10)])
+        .filter(Boolean)
+    : [];
 
   if(estado.lancamentoEditando){
     const { propId, idx } = estado.lancamentoEditando;
