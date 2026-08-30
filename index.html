@@ -102,6 +102,10 @@
       <p style="font-size:22px;font-weight:500;margin:0">0</p>
     </div>
   </div>
+  <div id="bloco-ovulacoes" style="display:none;margin-bottom:16px">
+    <p style="font-size:13px;font-weight:500;color:var(--text-accent);margin:0 0 8px">🥚 Ovulações ativas (contagem D)</p>
+    <div style="display:flex;flex-direction:column;gap:8px" id="lista-ovulacoes"></div>
+  </div>
   <div id="bloco-inducoes" style="display:none;margin-bottom:16px">
     <p style="font-size:13px;font-weight:500;color:var(--text-danger);margin:0 0 8px">⏰ Induções de ovulação ativas</p>
     <div style="display:flex;flex-direction:column;gap:8px" id="lista-inducoes"></div>
@@ -258,6 +262,8 @@
 <div id="view-cadastro-lancamento" style="padding:16px;display:none">
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Serviço do catálogo (opcional)</p>
   <select id="lanc-servico" onchange="preencherServicoLancamento()" style="margin-bottom:10px"></select>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Deslocamento em aberto (opcional)</p>
+  <select id="lanc-deslocamento" onchange="preencherDeslocamentoLancamento()" style="margin-bottom:10px"></select>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Animal (opcional)</p>
   <select id="lanc-animal" style="margin-bottom:10px"></select>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Descrição do procedimento</p>
@@ -289,6 +295,8 @@
   <div id="desl-bloco-fixo" style="display:none">
     <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Valor fixo do deslocamento (R$)</p>
     <input id="desl-valor-fixo" oninput="atualizarCalculoDeslocamento()" type="number" step="0.01" style="margin-bottom:10px" placeholder="Ex: 100.00"/>
+    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Km rodado (opcional, só para registro)</p>
+    <input id="desl-km-fixo" type="number" style="margin-bottom:10px" placeholder="0"/>
   </div>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data</p>
   <input id="desl-data" type="date" style="margin-bottom:10px"/>
@@ -361,6 +369,11 @@
         </div>
         <p style="font-size:12px;color:var(--text-secondary);margin:0" id="perfil-detalhes">-</p>
       </div>
+    </div>
+    <div id="perfil-ovulacao-info" style="display:none;text-align:center;background:var(--fill-accent);border-radius:8px;padding:10px;margin:8px 0 0">
+      <p style="font-size:11px;color:var(--on-accent);opacity:0.85;margin:0">🥚 Ovulação ativa</p>
+      <p id="perfil-ovulacao-dtexto" style="font-size:24px;font-weight:700;color:var(--on-accent);margin:2px 0 0">D0</p>
+      <p id="perfil-ovulacao-detalhe" style="font-size:11px;color:var(--on-accent);opacity:0.85;margin:2px 0 0"></p>
     </div>
     <p id="perfil-embriao-info" style="display:none;font-size:12px;color:var(--text-accent);background:var(--bg-accent);border-radius:6px;padding:6px 8px;margin:8px 0 0">-</p>
     <p id="perfil-sincronizada-info" style="display:none;font-size:12px;color:var(--text-secondary);background:var(--surface-2);border-radius:6px;padding:6px 8px;margin:8px 0 0">-</p>
@@ -584,6 +597,17 @@
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Hora da indução</p>
       <input id="inducao-hora" type="time" onchange="atualizarPrevisaoInducao()" style="margin-bottom:8px"/>
       <p style="font-size:12px;color:var(--text-accent);font-weight:500;margin:0" id="inducao-previsao">-</p>
+    </div>
+  </div>
+
+  <div id="bloco-marcar-ovulacao-wrapper">
+    <button type="button" id="btn-marcar-ovulacao" onclick="toggleMarcarOvulacao()" style="width:100%;margin-bottom:8px;text-align:left">🥚 Marcar Ovulação</button>
+    <div id="bloco-marcar-ovulacao" style="display:none;background:var(--bg-accent);border-radius:10px;padding:10px;margin-bottom:10px">
+      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data da ovulação (D0)</p>
+      <input id="ovulacao-data" type="date" style="margin-bottom:8px"/>
+      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Horário</p>
+      <input id="ovulacao-hora" type="time" style="margin-bottom:4px"/>
+      <p style="font-size:11px;color:var(--text-accent);margin:6px 0 0" id="ovulacao-ativa-aviso"></p>
     </div>
   </div>
 
@@ -1001,13 +1025,13 @@ function gerarUUID(){
 }
 
 // ===== INFRAESTRUTURA OFFLINE =====
-const TABELAS_OFFLINE = ["propriedades","animais","historico","manejo_sanitario","estatisticas","gestacoes","financeiro","deslocamentos","produtos","compras","consumos","servicos","servico_itens","transferencias","inducoes","retornos","coberturas","profiles"];
+const TABELAS_OFFLINE = ["propriedades","animais","historico","manejo_sanitario","estatisticas","gestacoes","financeiro","deslocamentos","produtos","compras","consumos","servicos","servico_itens","transferencias","inducoes","retornos","coberturas","ovulacoes","profiles"];
 let idbDB = null;
 let usuarioAtualId = null;
 
 function abrirIndexedDB(){
   return new Promise((resolve, reject)=>{
-    const req = indexedDB.open("equibr_offline", 2);
+    const req = indexedDB.open("equibr_offline", 3);
     req.onupgradeneeded = (e)=>{
       const db = e.target.result;
       TABELAS_OFFLINE.forEach(t=>{
@@ -1015,6 +1039,7 @@ function abrirIndexedDB(){
         db.createObjectStore(t, {keyPath: t==="estatisticas" ? "propriedade_id" : "id"});
       });
       if(!db.objectStoreNames.contains("sync_queue")) db.createObjectStore("sync_queue", {keyPath:"id"});
+      if(!db.objectStoreNames.contains("fotos_pendentes")) db.createObjectStore("fotos_pendentes", {keyPath:"id"});
     };
     req.onsuccess = (e)=>{ idbDB = e.target.result; resolve(idbDB); };
     req.onerror = (e)=>reject(e);
@@ -1074,6 +1099,7 @@ async function tentarSincronizar(){
   if(!navigator.onLine || sincronizando) return;
   sincronizando = true;
   try{
+    await processarFotosPendentes();
     const fila = await idbGetAll("sync_queue");
     fila.sort((a,b)=>a.timestamp-b.timestamp);
     syncProgresso = {total: fila.length, feitos: 0};
@@ -1116,20 +1142,21 @@ async function tentarSincronizar(){
   }
 }
 function atualizarIndicadorSync(){
-  idbGetAll("sync_queue").then(fila=>{
+  Promise.all([idbGetAll("sync_queue"), idbGetAll("fotos_pendentes")]).then(([fila, fotos])=>{
     const badge = document.getElementById("indicador-sync");
     if(!badge) return;
+    const total = fila.length + fotos.length;
     if(!navigator.onLine){
       badge.style.display = "flex";
       badge.style.background = "var(--bg-danger)";
       badge.style.color = "var(--text-danger)";
-      badge.textContent = "📴 Offline"+(fila.length ? (" · "+fila.length+" pendente(s)") : "");
-    } else if(fila.length>0){
+      badge.textContent = "📴 Offline"+(total ? (" · "+total+" pendente(s)") : "");
+    } else if(total>0){
       badge.style.display = "flex";
       badge.style.background = "var(--bg-accent)";
       badge.style.color = "var(--text-accent)";
       const pct = syncProgresso.total>0 ? Math.round((syncProgresso.feitos/syncProgresso.total)*100) : 0;
-      badge.textContent = sincronizando ? ("🔄 Sincronizando "+pct+"%") : ("🔄 "+fila.length+" pendente(s)");
+      badge.textContent = sincronizando ? ("🔄 Sincronizando "+pct+"%") : ("🔄 "+total+" pendente(s)");
     } else {
       badge.style.display = "none";
     }
@@ -1301,6 +1328,7 @@ const transferencias = [];
 const inducoes = [];
 const retornos = [];
 const coberturas = [];
+const ovulacoes = [];
 const servicos = [
   {id:"s1", nome:"Exame reprodutivo", preco:150, itens:[]},
   {id:"s2", nome:"Coleta e avaliação de sêmen", preco:350, itens:[]},
@@ -1421,6 +1449,27 @@ function abrirRetorno(animalId){
   estado.propriedade = a.propriedade;
   setNavAtivo("atender");
   abrirPerfil(animalId);
+}
+function renderOvulacoes(){
+  const bloco = document.getElementById("bloco-ovulacoes");
+  const ativas = ovulacoes.filter(o=>o.status==="ativa" && !o.espelhoDe && !o.dgRealizado);
+  if(!ativas.length){ bloco.style.display = "none"; return; }
+  bloco.style.display = "block";
+  document.getElementById("lista-ovulacoes").innerHTML = ativas.map(o=>{
+    const d = diaD(o.data);
+    const espelhos = ovulacoes.filter(x=>x.espelhoDe===o.id && x.status==="ativa" && !x.dgRealizado);
+    const linhaReceptoras = espelhos.map(e=>{
+      const dEsp = diaD(e.data);
+      return '<p onclick="abrirPerfil(\''+e.animalId+'\')" style="cursor:pointer;font-size:12px;color:var(--text-accent);margin:4px 0 0">🔗 Receptora: '+e.animalNome+' - <strong>D'+dEsp+'</strong></p>';
+    }).join("");
+    return '<div style="background:var(--surface-1);border-left:4px solid var(--fill-accent);border-radius:10px;padding:10px 12px">'+
+      '<div onclick="abrirPerfil(\''+o.animalId+'\')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">'+
+      '<p style="font-size:13px;font-weight:500;margin:0">'+o.animalNome+'</p>'+
+      '<span style="font-size:16px;font-weight:700;color:var(--text-accent)">D'+d+'</span>'+
+      '</div>'+
+      linhaReceptoras+
+      '</div>';
+  }).join("");
 }
 function renderInducoes(){
   const bloco = document.getElementById("bloco-inducoes");
@@ -1577,8 +1626,15 @@ function coletarDadosFormAtual(){
       const doadoraSinc = sincronizadaDados.doadoraId ? animais.find(x=>x.id===sincronizadaDados.doadoraId) : null;
       partes.push("Sincronizada com "+(doadoraSinc?doadoraSinc.nome:"-")+(sincronizadaDados.diaCiclo?(" - D"+sincronizadaDados.diaCiclo):""));
     }
+    const ovulacaoChecked = !!estado.marcarOvulacaoChecked;
+    const ovulacaoDados = {checked:ovulacaoChecked};
+    if(ovulacaoChecked){
+      ovulacaoDados.data = dataISOparaBR(document.getElementById("ovulacao-data").value) || dataHojeBR();
+      ovulacaoDados.hora = document.getElementById("ovulacao-hora").value || "";
+      partes.push("Ovulação marcada - D0 em "+ovulacaoDados.data+(ovulacaoDados.hora?(" "+ovulacaoDados.hora):""));
+    }
     dados = {
-      ovarioEsq:ovarioEsq, ovarioDir:ovarioDir, edema:edema, cobertura:coberturaDados, dg:dgDados, lavado:lavadoDados, sincronizada:sincronizadaDados,
+      ovarioEsq:ovarioEsq, ovarioDir:ovarioDir, edema:edema, cobertura:coberturaDados, dg:dgDados, lavado:lavadoDados, sincronizada:sincronizadaDados, ovulacao:ovulacaoDados,
       medicacoes: (document.getElementById("femea-medicacoes")||{}).value || "",
       obs: (document.getElementById("femea-obs")||{}).value || ""
     };
@@ -1658,6 +1714,13 @@ async function registrarResultadosReproducao(){
     estatisticasMudou = true;
   }
   if(dgChecked && resultado){
+    const ativaAnimalDg = ovulacaoAtiva(estado.animal.id);
+    if(resultado!=="positiva"){
+      if(ativaAnimalDg) await fecharOvulacao(ativaAnimalDg.id, true);
+    } else if(ativaAnimalDg){
+      ativaAnimalDg.dgRealizado = true;
+      await offlineUpdate("ovulacoes", ativaAnimalDg.id, { dg_realizado:true });
+    }
     const coberturaVinculada = coberturas.find(c=>c.animalId===estado.animal.id && c.status==="pendente");
     const categoriaLabel = categorias[catAnimal] || catAnimal;
     let tipoCoberturaLabel = null, garanhaoFinal = "", cruzamento = "-", transferenciaVinculada = null, transferenciaCriada = false;
@@ -1741,6 +1804,58 @@ async function registrarResultadosReproducao(){
     });
   }
 }
+async function fecharOvulacao(ovulacaoId, fecharEspelhos){
+  if(fecharEspelhos===undefined) fecharEspelhos = true;
+  const o = ovulacoes.find(x=>x.id===ovulacaoId);
+  if(!o || o.status!=="ativa") return;
+  o.status = "encerrada";
+  await offlineUpdate("ovulacoes", o.id, { status:"encerrada" });
+  if(fecharEspelhos){
+    const espelhos = ovulacoes.filter(x=>x.espelhoDe===ovulacaoId && x.status==="ativa");
+    for(const e of espelhos){
+      e.status = "encerrada";
+      await offlineUpdate("ovulacoes", e.id, { status:"encerrada" });
+    }
+  }
+}
+async function sincronizarOvulacao(historicoDbId){
+  if(estado.formAtual!=="repro-femea" || !estado.animal) return;
+  const uid = usuarioAtualId;
+  // Marcar Ovulação (qualquer categoria, inclusive receptora - cada animal ovula no seu próprio dia)
+  if(estado.marcarOvulacaoChecked){
+    const dataOv = dataISOparaBR(document.getElementById("ovulacao-data").value) || dataHojeBR();
+    const hora = document.getElementById("ovulacao-hora").value || "";
+    const ativaAnterior = ovulacaoAtiva(estado.animal.id);
+    if(ativaAnterior) await fecharOvulacao(ativaAnterior.id, false);
+    if(uid){
+      const novoId = gerarUUID();
+      const nova = {
+        id:novoId, animalId:estado.animal.id, animalNome:estado.animal.nome, propriedadeId:estado.animal.propriedade,
+        data:dataOv, hora:hora, status:"ativa", espelhoDe:null, origemHistoricoId:historicoDbId||null
+      };
+      await offlineInsert("ovulacoes", {
+        id:novoId, user_id:uid, animal_id:nova.animalId, animal_nome:nova.animalNome, propriedade_id:nova.propriedadeId,
+        data_ovulacao:dataOv, hora_ovulacao:hora, status:"ativa", espelho_de:null, origem_historico_id:historicoDbId||null
+      });
+      ovulacoes.unshift(nova);
+    }
+  }
+  // Sincronizada com a doadora (receptora): só vincula a ovulação PRÓPRIA da receptora à da doadora,
+  // para aparecerem juntas na tela inicial e serem fechadas em cascata (não copia a data - cada uma
+  // ovula no seu próprio dia, precisa ser marcada individualmente).
+  if(estado.animal.categoria==="receptora"){
+    const chkSinc = document.getElementById("chk-sincronizada");
+    if(chkSinc && chkSinc.checked){
+      const doadoraId = document.getElementById("sincronizada-doadora").value;
+      const ativaDoadora = doadoraId ? ovulacaoAtiva(doadoraId) : null;
+      const ativaReceptora = ovulacaoAtiva(estado.animal.id);
+      if(ativaDoadora && ativaReceptora && ativaReceptora.espelhoDe!==ativaDoadora.id){
+        ativaReceptora.espelhoDe = ativaDoadora.id;
+        await offlineUpdate("ovulacoes", ativaReceptora.id, { espelho_de:ativaDoadora.id });
+      }
+    }
+  }
+}
 async function salvarAtendimento(){
   if(!estado.animal){ voltar(); return; }
   const id = estado.animal.id;
@@ -1762,7 +1877,7 @@ async function salvarAtendimento(){
       });
     }
     estado.editandoHistorico = null;
-    if(estado.formAtual==="repro-femea") await sincronizarCobertura(historicoDbId);
+    if(estado.formAtual==="repro-femea"){ await sincronizarCobertura(historicoDbId); await sincronizarOvulacao(historicoDbId); }
   } else {
     const novoRegistro = {tipo:coletado.tipo, tipoForm:estado.formAtual, data:dataHojeBR(), resumo:coletado.resumo, dados:coletado.dados};
     if(uid){
@@ -1775,7 +1890,7 @@ async function salvarAtendimento(){
     }
     historicoDbId = novoRegistro.dbId || null;
     historico[id].unshift(novoRegistro);
-    if(estado.formAtual==="repro-femea") await sincronizarCobertura(historicoDbId);
+    if(estado.formAtual==="repro-femea"){ await sincronizarCobertura(historicoDbId); await sincronizarOvulacao(historicoDbId); }
     await registrarResultadosReproducao();
     if(estado.formAtual==="repro-femea" && (document.getElementById("chk-dg")||{}).checked){
       await offlineUpdate("animais", estado.animal.id, {
@@ -1804,6 +1919,14 @@ async function salvarAtendimento(){
       }
       transferencias.push(nova);
     }
+    // lavado positivo: a contagem do D segue só na receptora, não na doadora
+    const ativaDoadora = ovulacaoAtiva(estado.animal.id);
+    if(ativaDoadora) await fecharOvulacao(ativaDoadora.id, false);
+  }
+  if(estado.formAtual==="repro-femea" && estado.animal.categoria==="doadora" && estado.lavadoSelecionado==="negativo"){
+    // lavado negativo: o D sai, tanto da doadora quanto de qualquer receptora sincronizada com ela
+    const ativaDoadora = ovulacaoAtiva(estado.animal.id);
+    if(ativaDoadora) await fecharOvulacao(ativaDoadora.id, true);
   }
   if(estado.formAtual==="repro-femea" && historicoDbId){
     const indExistente = inducoes.find(i=>i.origemHistoricoId===historicoDbId);
@@ -2210,8 +2333,10 @@ function renderDeslocamento(id){
   document.getElementById("msg-sem-deslocamento").style.display = dList.length ? "none":"block";
   document.getElementById("lista-deslocamento").innerHTML = dList.map((d,i)=>
     '<div onclick="editarDeslocamento(\''+id+'\','+i+')" style="cursor:pointer;background:var(--surface-1);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">'+
-    '<div><p style="font-size:13px;font-weight:500;margin:0">R$ '+d.valor.toFixed(2)+'</p><p style="font-size:11px;color:var(--text-muted);margin:0">'+d.data+' - '+(d.modo==="fixo" ? "Valor fixo" : ("R$ "+(d.valorKm||0).toFixed(2)+"/km"))+'</p></div>'+
-    '<div style="display:flex;align-items:center;gap:8px"><p style="font-size:12px;color:var(--text-secondary);margin:0">'+(d.modo==="fixo" ? "-" : (d.km+" km"))+'</p>'+
+    '<div><div style="display:flex;align-items:center;gap:6px"><p style="font-size:13px;font-weight:500;margin:0">R$ '+d.valor.toFixed(2)+'</p>'+
+    '<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:'+(d.faturado?"var(--bg-success)":"var(--bg-accent)")+';color:'+(d.faturado?"var(--text-success)":"var(--text-accent)")+'">'+(d.faturado?"Faturado":"Em aberto")+'</span></div>'+
+    '<p style="font-size:11px;color:var(--text-muted);margin:0">'+d.data+' - '+(d.modo==="fixo" ? "Valor fixo" : ("R$ "+(d.valorKm||0).toFixed(2)+"/km"))+'</p></div>'+
+    '<div style="display:flex;align-items:center;gap:8px"><p style="font-size:12px;color:var(--text-secondary);margin:0">'+(d.km?(d.km+" km"):"-")+'</p>'+
     '<span onclick="excluirDeslocamento(\''+id+'\','+i+',event)" style="font-size:14px;color:var(--text-danger);cursor:pointer">🗑️</span></div></div>'
   ).join("");
 }
@@ -2258,10 +2383,14 @@ function prepCadastroLancamento(){
   document.getElementById("lanc-data").value = "";
   document.getElementById("lanc-servico").innerHTML = '<option value="">Nenhum / personalizado</option>' +
     servicos.map(s=>'<option value="'+s.id+'">'+s.nome+' - R$ '+s.preco.toFixed(0)+'</option>').join("");
+  const deslocAbertos = (deslocamentos[estado.propriedadeEditando]||[]).filter(d=>!d.faturado);
+  document.getElementById("lanc-deslocamento").innerHTML = '<option value="">Nenhum</option>' +
+    deslocAbertos.map((d,i)=>'<option value="'+i+'">'+d.data+' - R$ '+d.valor.toFixed(2)+(d.modo==="fixo"?" (fixo)":" ("+d.km+"km)")+'</option>').join("");
   const animaisProp = animais.filter(a=>a.propriedade===estado.propriedadeEditando);
   document.getElementById("lanc-animal").innerHTML = '<option value="">Nenhum específico</option>' +
     animaisProp.map(a=>'<option value="'+a.id+'">'+a.nome+' - '+categorias[a.categoria]+'</option>').join("");
   document.getElementById("lanc-servico").value = "";
+  document.getElementById("lanc-deslocamento").value = "";
   document.getElementById("lanc-animal").value = "";
   setStatusLancamento("pendente");
   setView("cadastro-lancamento");
@@ -2273,6 +2402,8 @@ function editarLancamento(propId, idx){
   estado.lancamentoEditando = {propId:propId, idx:idx};
   document.getElementById("lanc-servico").innerHTML = '<option value="">Nenhum / personalizado</option>' +
     servicos.map(s=>'<option value="'+s.id+'">'+s.nome+' - R$ '+s.preco.toFixed(0)+'</option>').join("");
+  document.getElementById("lanc-deslocamento").innerHTML = '<option value="">Nenhum</option>';
+  document.getElementById("lanc-deslocamento").value = "";
   const animaisProp = animais.filter(a=>a.propriedade===propId);
   document.getElementById("lanc-animal").innerHTML = '<option value="">Nenhum específico</option>' +
     animaisProp.map(a=>'<option value="'+a.id+'">'+a.nome+' - '+categorias[a.categoria]+'</option>').join("");
@@ -2292,9 +2423,20 @@ function preencherServicoLancamento(){
     document.getElementById("lanc-valor").value = s.preco;
   }
 }
+function preencherDeslocamentoLancamento(){
+  const idx = document.getElementById("lanc-deslocamento").value;
+  if(idx===""){ return; }
+  const deslocAbertos = (deslocamentos[estado.propriedadeEditando]||[]).filter(d=>!d.faturado);
+  const d = deslocAbertos[parseInt(idx,10)];
+  if(d){
+    document.getElementById("lanc-descricao").value = "Deslocamento - "+d.data;
+    document.getElementById("lanc-valor").value = d.valor;
+  }
+}
 async function salvarLancamento(){
   const id = estado.propriedadeEditando;
   const servicoId = document.getElementById("lanc-servico").value;
+  const deslocIdx = document.getElementById("lanc-deslocamento").value;
   const animalId = document.getElementById("lanc-animal").value;
   const animalSel = animalId ? animais.find(a=>a.id===animalId) : null;
   let descricao = document.getElementById("lanc-descricao").value || "Procedimento";
@@ -2303,6 +2445,12 @@ async function salvarLancamento(){
   const data = dataInput ? dataInput.split("-").reverse().join("/") : "-";
   const status = estado.statusLancamento||"pendente";
   if(!financeiro[id]) financeiro[id] = [];
+
+  let deslocamentoSel = null;
+  if(deslocIdx!==""){
+    const deslocAbertos = (deslocamentos[id]||[]).filter(d=>!d.faturado);
+    deslocamentoSel = deslocAbertos[parseInt(deslocIdx,10)] || null;
+  }
 
   if(estado.lancamentoEditando){
     const { propId, idx } = estado.lancamentoEditando;
@@ -2334,6 +2482,12 @@ async function salvarLancamento(){
     novo.dbId = novoId;
   }
   financeiro[id].push(novo);
+  if(deslocamentoSel){
+    deslocamentoSel.faturado = true;
+    if(deslocamentoSel.dbId){
+      await offlineUpdate("deslocamentos", deslocamentoSel.dbId, { faturado:true });
+    }
+  }
   if(servicoId){
     const s = servicos.find(x=>x.id===servicoId);
     if(s){
@@ -2351,6 +2505,7 @@ function prepCadastroDeslocamento(){
   document.getElementById("desl-valor-km").value = "";
   document.getElementById("desl-km").value = "";
   document.getElementById("desl-valor-fixo").value = "";
+  document.getElementById("desl-km-fixo").value = "";
   document.getElementById("desl-data").value = "";
   setModoDeslocamento("km");
   setView("cadastro-deslocamento");
@@ -2363,6 +2518,7 @@ function editarDeslocamento(propId, idx){
   document.getElementById("desl-valor-km").value = d.valorKm||"";
   document.getElementById("desl-km").value = d.km||"";
   document.getElementById("desl-valor-fixo").value = d.valorFixo||"";
+  document.getElementById("desl-km-fixo").value = d.modo==="fixo" ? (d.km||"") : "";
   document.getElementById("desl-data").value = dataBRparaISO(d.data) || "";
   setModoDeslocamento(d.modo||"km");
   setView("cadastro-deslocamento");
@@ -2373,6 +2529,7 @@ async function salvarDeslocamento(){
   let valorKm = 0, km = 0, valorFixo = 0, valor = 0;
   if(modo==="fixo"){
     valorFixo = parseFloat(document.getElementById("desl-valor-fixo").value)||0;
+    km = parseFloat(document.getElementById("desl-km-fixo").value)||0;
     valor = valorFixo;
   } else {
     valorKm = parseFloat(document.getElementById("desl-valor-km").value)||0;
@@ -2399,11 +2556,11 @@ async function salvarDeslocamento(){
     return;
   }
 
-  const novo = {modo:modo, valorKm:valorKm, km:km, valorFixo:valorFixo, valor:valor, data:data};
+  const novo = {modo:modo, valorKm:valorKm, km:km, valorFixo:valorFixo, valor:valor, data:data, faturado:false};
   if(usuarioAtualId){
     const novoId = gerarUUID();
     await offlineInsert("deslocamentos", {
-      id:novoId, user_id:usuarioAtualId, propriedade_id:id, modo:modo, valor_km:valorKm, km:km, valor_fixo:valorFixo, valor:valor, data:data
+      id:novoId, user_id:usuarioAtualId, propriedade_id:id, modo:modo, valor_km:valorKm, km:km, valor_fixo:valorFixo, valor:valor, data:data, faturado:false
     });
     novo.dbId = novoId;
   }
@@ -2615,7 +2772,7 @@ async function salvarEdicaoGestacao(){
 async function excluirGestacao(){
   const id = estado.propriedadeEditando;
   const g = (gestacoes[id]||[])[estado.gestacaoEditando];
-  if(!confirm("Excluir esta gestação do painel? Isso não altera o histórico do animal, só o registro de gestação.")) return;
+  if(!confirm("Excluir esta gestação do painel? Isso também atualiza o status de gestante do animal.")) return;
   if(g && g.status==="perdida"){ await ajustarNegativoPorPerda(id, g.categoria, -1); }
   if(g && (g.coberturaId || g.transferenciaId)){
     if(g.coberturaId){
@@ -2630,6 +2787,14 @@ async function excluirGestacao(){
   }
   if(g && g.id){ await offlineDelete("gestacoes", g.id); }
   gestacoes[id].splice(estado.gestacaoEditando,1);
+  if(g && g.animalId){
+    const a = animais.find(x=>x.id===g.animalId);
+    const aindaAtiva = (gestacoes[id]||[]).some(x=>x.animalId===g.animalId && x.status!=="perdida");
+    if(a && !aindaAtiva){
+      a.gestante = false;
+      await offlineUpdate("animais", a.id, { gestante:false });
+    }
+  }
   voltar();
   setPropTab("gestacoes");
   renderListaGestacoesFiltrada();
@@ -2878,6 +3043,12 @@ function abrirHistoricoDetalhe(animalId, idx){
       document.getElementById("sincronizada-doadora").value = doadoraSalvaId;
       document.getElementById("sincronizada-dia").value = (d.sincronizada && d.sincronizada.diaCiclo) || "";
     }
+    const ovulChecked = !!(d.ovulacao && d.ovulacao.checked);
+    estado.marcarOvulacaoChecked = ovulChecked;
+    document.getElementById("bloco-marcar-ovulacao").style.display = ovulChecked ? "block":"none";
+    document.getElementById("ovulacao-data").value = ovulChecked ? (dataBRparaISO(d.ovulacao.data)||"") : "";
+    document.getElementById("ovulacao-hora").value = ovulChecked ? (d.ovulacao.hora||"") : "";
+    document.getElementById("ovulacao-ativa-aviso").textContent = "";
     const indVinculada = entry.dbId ? inducoes.find(i=>i.origemHistoricoId===entry.dbId) : null;
     if(indVinculada){
       document.getElementById("chk-inducao").checked = true;
@@ -3013,6 +3184,15 @@ function abrirPerfil(id){
   document.getElementById("perfil-detalhes").textContent = det;
   document.getElementById("perfil-card").style.background = a.gestante ? "var(--bg-success)" : "var(--surface-1)";
   document.getElementById("perfil-badge-gestante").style.display = a.gestante ? "inline-block":"none";
+  const ovulEl = document.getElementById("perfil-ovulacao-info");
+  const ativaOv = ovulacaoAtiva(a.id);
+  if(ativaOv){
+    ovulEl.style.display = "block";
+    document.getElementById("perfil-ovulacao-dtexto").textContent = "D"+diaD(ativaOv.data);
+    document.getElementById("perfil-ovulacao-detalhe").textContent = "Ovulação em "+ativaOv.data+(ativaOv.hora?(" "+ativaOv.hora):"")+(ativaOv.espelhoDe?" (vinculada à doadora)":"");
+  } else {
+    ovulEl.style.display = "none";
+  }
   if(a.foto){
     document.getElementById("perfil-foto-img").src = a.foto;
     document.getElementById("perfil-foto-img").style.display = "block";
@@ -3081,6 +3261,11 @@ function abrirForm(tipo){
     document.getElementById("chk-sincronizada").checked = false;
     document.getElementById("bloco-sincronizada").style.display = "none";
     document.getElementById("bloco-doadora").style.display = estado.animal.categoria==="doadora" ? "block":"none";
+    document.getElementById("bloco-marcar-ovulacao").style.display = "none";
+    document.getElementById("ovulacao-data").value = "";
+    document.getElementById("ovulacao-hora").value = "";
+    document.getElementById("ovulacao-ativa-aviso").textContent = "";
+    estado.marcarOvulacaoChecked = false;
     document.getElementById("chk-lavado").checked = false;
     document.getElementById("bloco-lavado-resultado").style.display = "none";
     document.getElementById("bloco-lavado-receptora").style.display = "none";
@@ -3154,6 +3339,34 @@ function toggleInducao(cb){
   if(!cb.checked){
     document.getElementById("bloco-inducao-detalhe").style.display = "none";
     estado.medicamentoInducao = null;
+  }
+}
+function ovulacaoAtiva(animalId){
+  const lista = ovulacoes.filter(o=>o.animalId===animalId && o.status==="ativa");
+  return lista.length ? lista[lista.length-1] : null;
+}
+function diaD(dataOvulacaoBR){
+  if(!dataOvulacaoBR) return null;
+  const partes = dataOvulacaoBR.split("/");
+  if(partes.length!==3) return null;
+  const dataOv = new Date(parseInt(partes[2],10), parseInt(partes[1],10)-1, parseInt(partes[0],10));
+  const hoje = new Date(); hoje.setHours(0,0,0,0); dataOv.setHours(0,0,0,0);
+  return Math.round((hoje-dataOv)/(1000*60*60*24));
+}
+function toggleMarcarOvulacao(){
+  const bloco = document.getElementById("bloco-marcar-ovulacao");
+  const abrindo = bloco.style.display==="none";
+  bloco.style.display = abrindo ? "block":"none";
+  estado.marcarOvulacaoChecked = abrindo;
+  if(abrindo){
+    if(!document.getElementById("ovulacao-data").value){
+      document.getElementById("ovulacao-data").value = new Date().toISOString().slice(0,10);
+    }
+    const aviso = document.getElementById("ovulacao-ativa-aviso");
+    if(estado.animal){
+      const ativa = ovulacaoAtiva(estado.animal.id);
+      aviso.textContent = ativa ? ("⚠️ Já existe uma ovulação ativa (D"+diaD(ativa.data)+") - marcar de novo vai substituir a anterior.") : "";
+    }
   }
 }
 function setMedicamentoInducao(v){
@@ -3313,6 +3526,7 @@ function abrirFotoAmpliada(){
 async function anexarFotoAnimal(input){
   if(!input.files || !input.files[0] || !estado.animal) return;
   const file = input.files[0];
+  const animalId = estado.animal.id;
   const reader = new FileReader();
   reader.onload = function(e){
     const imgPerfil = document.getElementById("perfil-foto-img");
@@ -3327,17 +3541,58 @@ async function anexarFotoAnimal(input){
     if(btnExcluir){ btnExcluir.style.display = "block"; }
   };
   reader.readAsDataURL(file);
-  const animalId = estado.animal.id;
-  const caminho = animalId+"/"+Date.now()+"-"+file.name;
-  const { error: erroUpload } = await supabaseClient.storage.from("fotos-animais").upload(caminho, file, { upsert:true });
-  if(erroUpload){ alert("Erro ao enviar a foto: "+erroUpload.message); return; }
-  const { data: urlData } = supabaseClient.storage.from("fotos-animais").getPublicUrl(caminho);
-  const url = urlData.publicUrl;
-  estado.animal.foto = url;
-  const a = animais.find(x=>x.id===animalId);
-  if(a) a.foto = url;
-  await offlineUpdate("animais", animalId, { foto_url:url });
   input.value = "";
+
+  if(navigator.onLine){
+    try{
+      const caminho = animalId+"/"+Date.now()+"-"+file.name;
+      const { error: erroUpload } = await supabaseClient.storage.from("fotos-animais").upload(caminho, file, { upsert:true });
+      if(erroUpload) throw erroUpload;
+      const { data: urlData } = supabaseClient.storage.from("fotos-animais").getPublicUrl(caminho);
+      const url = urlData.publicUrl;
+      if(estado.animal && estado.animal.id===animalId) estado.animal.foto = url;
+      const a = animais.find(x=>x.id===animalId);
+      if(a) a.foto = url;
+      await offlineUpdate("animais", animalId, { foto_url:url });
+      return;
+    } catch(e){
+      console.warn("Falha ao enviar a foto agora, ficará pendente para quando houver internet:", e);
+    }
+  }
+  // offline (ou o envio falhou): guarda o arquivo para subir sozinho depois
+  try{
+    await idbPut("fotos_pendentes", { id:gerarUUID(), animalId:animalId, file:file, nomeArquivo:file.name, timestamp:Date.now() });
+    atualizarIndicadorSync();
+  } catch(e){
+    console.error("Não foi possível guardar a foto para envio posterior:", e);
+    alert("Não foi possível guardar a foto. Tente novamente.");
+  }
+}
+async function processarFotosPendentes(){
+  if(!navigator.onLine) return;
+  let pendentes = [];
+  try{ pendentes = await idbGetAll("fotos_pendentes"); } catch(e){ return; }
+  for(const p of pendentes){
+    try{
+      const caminho = p.animalId+"/"+p.timestamp+"-"+p.nomeArquivo;
+      const { error } = await supabaseClient.storage.from("fotos-animais").upload(caminho, p.file, { upsert:true });
+      if(error) throw error;
+      const { data: urlData } = supabaseClient.storage.from("fotos-animais").getPublicUrl(caminho);
+      const url = urlData.publicUrl;
+      const a = animais.find(x=>x.id===p.animalId);
+      if(a) a.foto = url;
+      if(estado.animal && estado.animal.id===p.animalId){
+        estado.animal.foto = url;
+        const imgPerfil = document.getElementById("perfil-foto-img");
+        if(imgPerfil && document.getElementById("view-perfil").style.display!=="none"){ imgPerfil.src = url; }
+      }
+      await offlineUpdate("animais", p.animalId, { foto_url:url });
+      await idbDelete("fotos_pendentes", p.id);
+    } catch(e){
+      console.warn("Ainda não consegui enviar uma foto pendente, tenta de novo mais tarde:", e);
+    }
+  }
+  atualizarIndicadorSync();
 }
 async function excluirFotoAnimal(){
   if(!estado.animal || !confirm("Excluir a foto deste animal?")) return;
@@ -4294,7 +4549,7 @@ function setView(name){
   document.getElementById("btn-back").style.display = (name==="dashboard"||name==="login"||(name==="meus-dados" && estado.cadastroObrigatorio)) ? "none":"inline";
   document.getElementById("header-logo").style.display = name==="dashboard" ? "inline-block":"none";
   document.getElementById("btn-header-add").style.display = name==="atender" ? "flex":"none";
-  if(name==="dashboard"){ renderLembretes(); renderInducoes(); renderEventos(); atualizarBannerTrial(); }
+  if(name==="dashboard"){ renderLembretes(); renderInducoes(); renderEventos(); renderOvulacoes(); atualizarBannerTrial(); }
   if(name==="animais") renderAnimais();
   if(name==="propriedades") renderListaPropriedades("lista-propriedades-manage","manage");
   if(name==="atender") renderListaPropriedades("lista-propriedades-atender","atender");
@@ -4423,7 +4678,7 @@ async function carregarDadosIniciais(){
   Object.keys(deslocamentos).forEach(k=>delete deslocamentos[k]);
   desl.filter(d=>d.user_id===uid).forEach(d=>{
     if(!deslocamentos[d.propriedade_id]) deslocamentos[d.propriedade_id] = [];
-    deslocamentos[d.propriedade_id].push({dbId:d.id, modo:d.modo||"km", valorKm:d.valor_km, km:d.km, valorFixo:d.valor_fixo, valor:d.valor, data:d.data});
+    deslocamentos[d.propriedade_id].push({dbId:d.id, modo:d.modo||"km", valorKm:d.valor_km, km:d.km, valorFixo:d.valor_fixo, valor:d.valor, data:d.data, faturado:d.faturado||false});
   });
 
   propriedades.forEach(p=>{
@@ -4471,6 +4726,13 @@ async function carregarDadosIniciais(){
   cob.filter(c=>c.user_id===uid).forEach(c=>coberturas.push({
     id:c.id, animalId:c.animal_id, animalNome:c.animal_nome, propriedadeId:c.propriedade_id,
     tipo:c.tipo, tipoSemen:c.tipo_semen, garanhao:c.garanhao, data:c.data, status:c.status, origemHistoricoId:c.origem_historico_id||null
+  }));
+
+  const ovul = await carregarTabela("ovulacoes");
+  ovulacoes.length = 0;
+  ovul.filter(o=>o.user_id===uid).forEach(o=>ovulacoes.push({
+    id:o.id, animalId:o.animal_id, animalNome:o.animal_nome, propriedadeId:o.propriedade_id,
+    data:o.data_ovulacao, hora:o.hora_ovulacao, status:o.status, espelhoDe:o.espelho_de||null, dgRealizado:o.dg_realizado||false, origemHistoricoId:o.origem_historico_id||null
   }));
 
   atualizarIndicadorSync();
