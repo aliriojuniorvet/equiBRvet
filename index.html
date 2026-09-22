@@ -4603,19 +4603,32 @@ function restaurarEstadoNavegacao(){
   let salvo = null;
   try{ salvo = JSON.parse(localStorage.getItem("equibr_ultima_tela")||"null"); } catch(e){ return false; }
   if(!salvo || !salvo.view) return false;
+  const view = salvo.view;
+  const propOk = salvo.propriedadeId && propriedades.find(p=>p.id===salvo.propriedadeId);
+  const animalOk = salvo.animalId && animais.find(a=>a.id===salvo.animalId);
   try{
-    if(salvo.view==="propriedade-detalhes" && salvo.propriedadeId && propriedades.find(p=>p.id===salvo.propriedadeId)){
-      abrirPropriedadeGerenciar(salvo.propriedadeId); return true;
+    // Telas que dá pra reconstruir exatamente
+    if(view==="propriedade-detalhes" && propOk){ abrirPropriedadeGerenciar(salvo.propriedadeId); return true; }
+    if(view==="perfil" && animalOk){ abrirPerfil(salvo.animalId); return true; }
+    if(view==="animais" && propOk){ abrirPropriedadeAtender(salvo.propriedadeId); return true; }
+
+    // Telas simples de navegação, sem dado associado
+    if(["propriedades","menu","estoque","servicos","atender","meus-dados"].indexOf(view)>-1){
+      setView(view); setNavAtivo(view==="propriedades"?"propriedades":(view==="atender"?"atender":"dashboard")); return true;
     }
-    if(salvo.view==="perfil" && salvo.animalId && animais.find(a=>a.id===salvo.animalId)){
+
+    // Formulários/telas de detalhe: como o que estava digitado se perde no recarregamento
+    // mesmo assim, volta pra tela "mãe" mais próxima em vez de ir pro início
+    if(["foto-ampliada","manejo-sanitario","cadastro-sanitario","perda-gestacional","form-clinico","form-repro-femea","form-coleta"].indexOf(view)>-1 && animalOk){
       abrirPerfil(salvo.animalId); return true;
     }
-    if(salvo.view==="animais" && salvo.propriedadeId && propriedades.find(p=>p.id===salvo.propriedadeId)){
-      abrirPropriedadeAtender(salvo.propriedadeId); return true;
+    if(["cadastro-lancamento","cadastro-deslocamento","editar-gestacao","editar-cobertura","editar-lavado","cadastro"].indexOf(view)>-1 && propOk){
+      abrirPropriedadeGerenciar(salvo.propriedadeId); return true;
     }
-    if(["propriedades","menu","estoque","servicos"].indexOf(salvo.view)>-1){
-      setView(salvo.view); setNavAtivo(salvo.view==="propriedades"?"propriedades":"dashboard"); return true;
-    }
+    if(view==="cadastro-propriedade"){ setView("propriedades"); setNavAtivo("propriedades"); return true; }
+    if(["cadastro-servico","servico-detalhe"].indexOf(view)>-1){ setView("servicos"); setNavAtivo("dashboard"); return true; }
+    if(["cadastro-produto","cadastro-compra"].indexOf(view)>-1){ setView("estoque"); setNavAtivo("dashboard"); return true; }
+    if(view==="relatorio" && propOk){ abrirPropriedadeGerenciar(salvo.propriedadeId); return true; }
   } catch(e){ /* ficha/propriedade não existe mais, ou outro erro: cai no dashboard */ }
   return false;
 }
@@ -4892,7 +4905,7 @@ supabaseClient.auth.onAuthStateChange((event, session)=>{
       req.onerror = ()=>res(null);
     } catch(e){ res(null); }
   });
-  if(sessaoOffline && !navigator.onLine){
+  if(sessaoOffline){
     usuarioAtualId = sessaoOffline.id;
     veterinario.nome = sessaoOffline.nome||""; veterinario.email = sessaoOffline.email||"";
     veterinario.crmv = sessaoOffline.crmv||""; veterinario.endereco = sessaoOffline.endereco||"";
@@ -4901,7 +4914,22 @@ supabaseClient.auth.onAuthStateChange((event, session)=>{
     try{ await carregarDadosIniciais(); } catch(e){ console.error("Erro ao carregar dados offline:", e); }
     estado.pilha = ["dashboard"];
     setNavAtivo("dashboard");
-    setView("dashboard");
+    if(!restaurarEstadoNavegacao()){ setView("dashboard"); }
+    // se a internet estiver de fato disponível (só a checagem de sessão que falhou por
+    // instabilidade), tenta recuperar a sessão online e sincronizar em segundo plano
+    tentarSincronizar();
+    setTimeout(async ()=>{
+      if(!navigator.onLine) return;
+      try{
+        const resultado2 = await supabaseClient.auth.getSession();
+        if(resultado2.data.session){
+          usuarioAtualId = resultado2.data.session.user.id;
+          await carregarPerfilUsuario(usuarioAtualId);
+          await carregarDadosIniciais();
+          atualizarIndicadorSync();
+        }
+      } catch(e){ /* continua com os dados em cache */ }
+    }, 1500);
   } else {
     setView("login");
   }
