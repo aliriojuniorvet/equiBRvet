@@ -4654,38 +4654,53 @@ async function carregarDadosIniciais(){
   if(!usuarioAtualId) return;
   const uid = usuarioAtualId;
 
-  const props = await carregarTabela("propriedades");
+  const [props, ans, hist, msan, est, gest, fin, desl, prods, compr, cons, servsRaw, itensServ, trans, ind, ret, cob, ovul] = await Promise.all([
+    carregarTabela("propriedades"),
+    carregarTabela("animais"),
+    carregarTabela("historico"),
+    carregarTabela("manejo_sanitario"),
+    carregarTabela("estatisticas"),
+    carregarTabela("gestacoes"),
+    carregarTabela("financeiro"),
+    carregarTabela("deslocamentos"),
+    carregarTabela("produtos"),
+    carregarTabela("compras"),
+    carregarTabela("consumos"),
+    carregarTabela("servicos"),
+    carregarTabela("servico_itens"),
+    carregarTabela("transferencias"),
+    carregarTabela("inducoes"),
+    carregarTabela("retornos"),
+    carregarTabela("coberturas"),
+    carregarTabela("ovulacoes")
+  ]);
+
   propriedades.length = 0;
   props.filter(p=>p.user_id===uid).forEach(p=>propriedades.push({id:p.id, nome:p.nome, cliente:p.cliente, cpf:p.cpf, clienteTelefone:p.cliente_telefone, clienteEmail:p.cliente_email, endereco:p.endereco, cep:p.cep, info:p.info}));
 
-  const ans = await carregarTabela("animais");
   animais.length = 0;
   ans.filter(a=>a.user_id===uid).forEach(a=>animais.push({
     id:a.id, nome:a.nome, raca:a.raca, categoria:a.categoria, idade:a.idade, peso:a.peso, pelagem:a.pelagem, numero:a.numero,
     gestante:a.gestante, foto:a.foto_url, propriedade:a.propriedade_id
   }));
 
-  const hist = await carregarTabela("historico");
   Object.keys(historico).forEach(k=>delete historico[k]);
   hist.filter(h=>h.user_id===uid).forEach(h=>{
     if(!historico[h.animal_id]) historico[h.animal_id] = [];
     historico[h.animal_id].push({dbId:h.id, tipo:h.tipo, tipoForm:h.tipo_form, data:h.data, resumo:h.resumo, dados:h.dados||{}});
   });
 
-  const msan = await carregarTabela("manejo_sanitario");
   Object.keys(manejoSanitario).forEach(k=>delete manejoSanitario[k]);
   msan.filter(m=>m.user_id===uid).forEach(m=>{
     if(!manejoSanitario[m.animal_id]) manejoSanitario[m.animal_id] = [];
     manejoSanitario[m.animal_id].push({id:m.id, tipo:m.tipo, nome:m.nome, data:m.data, obs:m.obs});
   });
 
-  const est = await carregarTabela("estatisticas");
   Object.keys(estatisticas).forEach(k=>delete estatisticas[k]);
   est.filter(e=>e.user_id===uid).forEach(e=>{
     estatisticas[e.propriedade_id] = {inseminacoes:e.inseminacoes||0, te:e.te||0, iaNegativosCount:e.ia_negativos_count||0, teNegativosCount:e.te_negativos_count||0};
   });
 
-  const gest = await carregarTabela("gestacoes");
   Object.keys(gestacoes).forEach(k=>delete gestacoes[k]);
   gest.filter(g=>g.user_id===uid).forEach(g=>{
     if(!gestacoes[g.propriedade_id]) gestacoes[g.propriedade_id] = [];
@@ -4696,14 +4711,12 @@ async function carregarDadosIniciais(){
     });
   });
 
-  const fin = await carregarTabela("financeiro");
   Object.keys(financeiro).forEach(k=>delete financeiro[k]);
   fin.filter(f=>f.user_id===uid).forEach(f=>{
     if(!financeiro[f.propriedade_id]) financeiro[f.propriedade_id] = [];
     financeiro[f.propriedade_id].push({dbId:f.id, descricao:f.descricao, valor:f.valor, data:f.data, status:f.status, servicoId:f.servico_id, animalId:f.animal_id, animalNome:f.animal_nome});
   });
 
-  const desl = await carregarTabela("deslocamentos");
   Object.keys(deslocamentos).forEach(k=>delete deslocamentos[k]);
   desl.filter(d=>d.user_id===uid).forEach(d=>{
     if(!deslocamentos[d.propriedade_id]) deslocamentos[d.propriedade_id] = [];
@@ -4718,46 +4731,37 @@ async function carregarDadosIniciais(){
     if(!deslocamentos[p.id]) deslocamentos[p.id] = [];
   });
 
-  const prods = await carregarTabela("produtos");
   produtos.length = 0;
   prods.filter(p=>p.user_id===uid).forEach(p=>produtos.push({id:p.id, nome:p.nome, unidade:p.unidade, quantidadeInicial:p.quantidade_inicial, custoInicial:p.custo_inicial, minimo:p.minimo}));
 
-  const compr = await carregarTabela("compras");
   compras.length = 0;
   compr.filter(c=>c.user_id===uid).forEach(c=>compras.push({id:c.id, produtoId:c.produto_id, fornecedor:c.fornecedor, quantidade:c.quantidade, valorUnitario:c.valor_unitario, data:c.data}));
 
-  const cons = await carregarTabela("consumos");
   consumos.length = 0;
   cons.filter(c=>c.user_id===uid).forEach(c=>consumos.push({id:c.id, produtoId:c.produto_id, quantidade:c.quantidade, origem:c.origem, data:c.data}));
 
-  let servs = (await carregarTabela("servicos")).filter(s=>s.user_id===uid);
-  const itensServ = await carregarTabela("servico_itens");
+  const servs = servsRaw.filter(s=>s.user_id===uid);
   servicos.length = 0;
   servs.forEach(s=>servicos.push({
     id:s.id, nome:s.nome, preco:s.preco,
     itens: itensServ.filter(it=>it.servico_id===s.id).map(it=>({id:it.id, produtoId:it.produto_id, quantidade:it.quantidade}))
   }));
 
-  const trans = await carregarTabela("transferencias");
   transferencias.length = 0;
   trans.filter(t=>t.user_id===uid).forEach(t=>transferencias.push({id:t.id, doadoraId:t.doadora_id, doadoraNome:t.doadora_nome, receptoraId:t.receptora_id, garanhao:t.garanhao, dataLavado:t.data_lavado, status:t.status, origemHistoricoId:t.origem_historico_id||null}));
 
-  const ind = await carregarTabela("inducoes");
   inducoes.length = 0;
   ind.filter(i=>i.user_id===uid).forEach(i=>inducoes.push({id:i.id, animalId:i.animal_id, animalNome:i.animal_nome, propriedade:i.propriedade_id, medicamento:i.medicamento, tipoSemen:i.tipo_semen, horaInducao:i.hora_inducao, dataInducao:i.data_inducao, previsao:i.previsao, origemHistoricoId:i.origem_historico_id||null}));
 
-  const ret = await carregarTabela("retornos");
   retornos.length = 0;
   ret.filter(r=>r.user_id===uid).forEach(r=>retornos.push({id:r.id, animalId:r.animal_id, animalNome:r.animal_nome, propriedade:r.propriedade_id, data:r.data, origemHistoricoId:r.origem_historico_id||null}));
 
-  const cob = await carregarTabela("coberturas");
   coberturas.length = 0;
   cob.filter(c=>c.user_id===uid).forEach(c=>coberturas.push({
     id:c.id, animalId:c.animal_id, animalNome:c.animal_nome, propriedadeId:c.propriedade_id,
     tipo:c.tipo, tipoSemen:c.tipo_semen, garanhao:c.garanhao, data:c.data, status:c.status, origemHistoricoId:c.origem_historico_id||null
   }));
 
-  const ovul = await carregarTabela("ovulacoes");
   ovulacoes.length = 0;
   ovul.filter(o=>o.user_id===uid).forEach(o=>ovulacoes.push({
     id:o.id, animalId:o.animal_id, animalNome:o.animal_nome, propriedadeId:o.propriedade_id,
@@ -4766,6 +4770,15 @@ async function carregarDadosIniciais(){
 
   await sincronizarGestantesComGestacoes();
   atualizarIndicadorSync();
+  carregarFotosOffline();
+}
+function carregarFotosOffline(){
+  // Dispara em segundo plano (sem travar nada) o download das fotos dos animais,
+  // pra que o Service Worker já tenha elas guardadas quando o sinal cair.
+  if(!navigator.onLine) return;
+  animais.filter(a=>a.foto).forEach(a=>{
+    fetch(a.foto, {mode:"no-cors"}).catch(()=>{});
+  });
 }
 async function sincronizarGestantesComGestacoes(){
   const propIds = Object.keys(gestacoes);
