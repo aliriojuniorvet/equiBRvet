@@ -104,7 +104,7 @@
     <div style="display:flex;flex-direction:column;gap:8px" id="lista-inducoes"></div>
   </div>
   <div id="bloco-lembretes" style="display:none;margin-bottom:16px">
-    <p style="font-size:13px;font-weight:500;color:var(--text-secondary);margin:0 0 8px">🔔 Lembretes de manejo sanitário</p>
+    <p style="font-size:13px;font-weight:500;color:var(--text-secondary);margin:0 0 8px">🔔 Lembretes</p>
     <div style="display:flex;flex-direction:column;gap:8px" id="lista-lembretes"></div>
   </div>
   <p style="font-size:13px;font-weight:500;color:var(--text-secondary);margin:0 0 8px">Próximos eventos - toque para abrir</p>
@@ -439,6 +439,12 @@
     <option value="semanal">Lembrar semanalmente</option>
     <option value="mensal">Lembrar mensalmente</option>
   </select>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Duração do tratamento (opcional)</p>
+  <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+    <span style="font-size:13px;color:var(--text-secondary)">Até</span>
+    <input id="med-duracao" type="number" min="1" style="width:70px" placeholder="Ex: 5"/>
+    <span style="font-size:13px;color:var(--text-secondary)">dias</span>
+  </div>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Observação (opcional)</p>
   <textarea id="med-obs" style="min-height:40px;margin-bottom:14px" placeholder="Via de administração, motivo, etc"></textarea>
   <button onclick="salvarMedicacao()" style="width:100%;background:var(--fill-accent);color:var(--on-accent);border:none">Salvar medicação</button>
@@ -625,12 +631,13 @@
   <div id="bloco-sinc-hormonal" style="display:none;background:var(--bg-accent);border-radius:10px;padding:10px;margin-bottom:10px">
     <p style="font-size:11px;color:var(--text-secondary);margin:0 0 8px">Protocolo de sincronização com estradiol (E2) e progesterona (P4). Ajuste os dias e doses de E2 como preferir.</p>
     <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data de início (dia 1 de E2)</p>
-    <input id="sinc-horm-data-inicio" type="date" onchange="atualizarPrevisaoSincHormonal()" style="margin-bottom:10px"/>
+    <input id="sinc-horm-data-inicio" type="date" onchange="onDataInicioSincChange()" style="margin-bottom:10px"/>
     <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Doses de E2 (um dia após o outro)</p>
     <div id="lista-etapas-e2" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
     <button type="button" onclick="adicionarEtapaE2()" style="width:100%;margin-bottom:10px">+ Adicionar dia de E2</button>
-    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Pular quantos dias antes de aplicar a P4</p>
-    <input id="sinc-horm-pula-dias" type="number" min="0" value="1" onchange="atualizarPrevisaoSincHormonal()" style="width:70px;margin-bottom:10px"/>
+    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data da aplicação da P4 (vira D0)</p>
+    <input id="sinc-horm-p4-data" type="date" onchange="atualizarPrevisaoSincHormonal()" style="margin-bottom:4px"/>
+    <p onclick="sugerirDataP4()" style="font-size:11px;color:var(--text-accent);margin:0 0 10px;cursor:pointer">🔄 Sugerir data (pula 1 dia após o último E2)</p>
     <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px">Forma de progesterona (P4)</p>
     <div style="display:flex;gap:6px;margin-bottom:10px">
       <button type="button" onclick="setP4Tipo('injetavel')" id="p4-injetavel" style="flex:1;border:none">Injetável</button>
@@ -1445,7 +1452,7 @@ function calcularLembretesVacinais(){
       proxima.setDate(proxima.getDate()+intervalo);
       const diffDias = Math.round((proxima-hoje)/(1000*60*60*24));
       if(diffDias<=14){
-        lembretes.push({animal:a.nome, nome:r.nome, dias:diffDias, atrasada:diffDias<0});
+        lembretes.push({animal:a.nome, nome:r.nome, dias:diffDias, atrasada:diffDias<0, tipo:"sanitario"});
       }
     });
   });
@@ -1465,10 +1472,11 @@ function calcularLembretesMedicacoes(){
       if(!dataBase) return;
       dataBase.setHours(0,0,0,0);
       const nomeExibicao = r.nome+(r.dose?(" - "+r.dose):"");
+      const limiteDuracao = r.duracaoDias ? new Date(dataBase.getTime()+(r.duracaoDias-1)*umDiaMs) : null;
       if(!r.lembrete){
         const diffDias = Math.round((dataBase-hoje)/umDiaMs);
-        if(diffDias<=14){
-          lembretes.push({animal:a.nome, nome:nomeExibicao, dias:diffDias, atrasada:diffDias<0});
+        if(diffDias<=1){
+          lembretes.push({animal:a.nome, nome:nomeExibicao, dias:diffDias, atrasada:diffDias<0, tipo:"medicacao"});
         }
       } else {
         const intervalo = intervalos[r.lembrete];
@@ -1478,9 +1486,10 @@ function calcularLembretesMedicacoes(){
           const passos = Math.ceil((hoje-proxima)/(intervalo*umDiaMs));
           proxima.setDate(proxima.getDate()+passos*intervalo);
         }
+        if(limiteDuracao && proxima > limiteDuracao) return;
         const diffDias = Math.round((proxima-hoje)/umDiaMs);
-        if(diffDias<=14){
-          lembretes.push({animal:a.nome, nome:nomeExibicao, dias:diffDias, atrasada:false});
+        if(diffDias<=1){
+          lembretes.push({animal:a.nome, nome:nomeExibicao, dias:diffDias, atrasada:diffDias<0, tipo:"medicacao"});
         }
       }
     });
@@ -1498,20 +1507,21 @@ function calcularLembretesSincHormonal(){
       const dataEtapa = new Date(inicio); dataEtapa.setDate(dataEtapa.getDate()+i);
       const diffDias = Math.round((dataEtapa-hoje)/umDiaMs);
       if(diffDias<=14){
-        lembretes.push({animal:p.animalNome, nome:"Sincronização - E2 "+dose+" (dia "+(i+1)+")", dias:diffDias, atrasada:diffDias<0});
+        lembretes.push({animal:p.animalNome, nome:"E2 "+dose+" (dia "+(i+1)+")", dias:diffDias, atrasada:diffDias<0, tipo:"sincronizacao"});
       }
     });
     const dataP4 = parseDataBR2(p.d0);
     if(dataP4){
       const diffDiasP4 = Math.round((dataP4-hoje)/umDiaMs);
       if(diffDiasP4<=14){
-        const label = p.p4Tipo==="implante" ? "Sincronização - Colocar implante de P4 (D0)" : "Sincronização - Aplicar P4 injetável (D0)";
-        lembretes.push({animal:p.animalNome, nome:label, dias:diffDiasP4, atrasada:diffDiasP4<0});
+        const label = p.p4Tipo==="implante" ? "Colocar implante de P4 (D0)" : "Aplicar P4 injetável (D0)";
+        lembretes.push({animal:p.animalNome, nome:label, dias:diffDiasP4, atrasada:diffDiasP4<0, tipo:"sincronizacao"});
       }
     }
   });
   return lembretes;
 }
+const ROTULO_TIPO_LEMBRETE = {sanitario:"🛡️ Manejo sanitário", medicacao:"💊 Medicação", sincronizacao:"🧬 Sincronização hormonal"};
 function renderLembretes(){
   const lembretes = calcularLembretesVacinais().concat(calcularLembretesMedicacoes()).concat(calcularLembretesSincHormonal()).sort((a,b)=>a.dias-b.dias);
   const bloco = document.getElementById("bloco-lembretes");
@@ -1519,8 +1529,9 @@ function renderLembretes(){
   bloco.style.display="block";
   document.getElementById("lista-lembretes").innerHTML = lembretes.map(l=>
     '<div style="background:'+(l.atrasada?"var(--bg-danger)":"var(--bg-accent)")+';border-radius:10px;padding:10px 12px">'+
-    '<p style="font-size:13px;font-weight:500;margin:0 0 2px;color:'+(l.atrasada?"var(--text-danger)":"var(--text-accent)")+'">'+(l.atrasada?"⚠️ Atrasada":"🔔 Próxima")+' - '+l.nome+'</p>'+
-    '<p style="font-size:12px;color:var(--text-secondary);margin:0">'+l.animal+' - '+(l.atrasada?("há "+Math.abs(l.dias)+" dias"):("em "+l.dias+" dias"))+'</p></div>'
+    '<p style="font-size:11px;font-weight:500;margin:0 0 2px;color:'+(l.atrasada?"var(--text-danger)":"var(--text-accent)")+'">'+(ROTULO_TIPO_LEMBRETE[l.tipo]||"🔔 Lembrete")+(l.atrasada?" · atrasada":"")+'</p>'+
+    '<p style="font-size:13px;font-weight:500;margin:0 0 2px;color:var(--text-primary)">'+l.nome+'</p>'+
+    '<p style="font-size:12px;color:var(--text-secondary);margin:0">'+l.animal+' - '+(l.atrasada?("há "+Math.abs(l.dias)+" dias"):(l.dias===0?"hoje":("em "+l.dias+" dias")))+'</p></div>'
   ).join("");
 }
 function renderEventos(){
@@ -2097,13 +2108,15 @@ async function salvarAtendimento(){
 
     const protExistente = protocolosSinc.find(p=>p.origemHistoricoId===historicoDbId);
     const chkSincHorm = document.getElementById("chk-sinc-hormonal");
-    if(chkSincHorm && chkSincHorm.checked && etapasE2.length && estado.p4TipoSelecionado){
+    const p4DataISO = document.getElementById("sinc-horm-p4-data") ? document.getElementById("sinc-horm-p4-data").value : "";
+    if(chkSincHorm && chkSincHorm.checked && etapasE2.length && estado.p4TipoSelecionado && p4DataISO){
       const dataInicioISO = document.getElementById("sinc-horm-data-inicio").value || new Date().toISOString().slice(0,10);
-      const pulaDias = parseInt(document.getElementById("sinc-horm-pula-dias").value,10) || 0;
       const dataInicioBR = dataISOparaBR(dataInicioISO) || dataHojeBR();
-      const d0Date = new Date(dataInicioISO+"T00:00:00");
-      d0Date.setDate(d0Date.getDate()+etapasE2.length-1+pulaDias+1);
-      const d0BR = dataISOparaBR(isoDeData(d0Date));
+      const d0BR = dataISOparaBR(p4DataISO);
+      const dataInicioObj = new Date(dataInicioISO+"T00:00:00");
+      const ultimoE2Obj = new Date(dataInicioObj); ultimoE2Obj.setDate(ultimoE2Obj.getDate()+etapasE2.length-1);
+      const p4Obj = new Date(p4DataISO+"T00:00:00");
+      const pulaDias = Math.round((p4Obj-ultimoE2Obj)/(1000*60*60*24))-1;
       const dadosProt = {
         animalId:estado.animal.id, animalNome:estado.animal.nome, propriedade:estado.animal.propriedade,
         dataInicio:dataInicioBR, etapasE2:etapasE2.slice(), pulaDias:pulaDias, p4Tipo:estado.p4TipoSelecionado, d0:d0BR,
@@ -3231,7 +3244,7 @@ function abrirHistoricoDetalhe(animalId, idx){
       document.getElementById("chk-sinc-hormonal").checked = true;
       document.getElementById("bloco-sinc-hormonal").style.display = "block";
       document.getElementById("sinc-horm-data-inicio").value = dataBRparaISO(protVinculado.dataInicio)||"";
-      document.getElementById("sinc-horm-pula-dias").value = protVinculado.pulaDias!=null ? protVinculado.pulaDias : 1;
+      document.getElementById("sinc-horm-p4-data").value = dataBRparaISO(protVinculado.d0)||"";
       etapasE2 = (protVinculado.etapasE2 && protVinculado.etapasE2.length) ? protVinculado.etapasE2.slice() : ["1mL","2mL","1mL"];
       renderEtapasE2();
       setP4Tipo(protVinculado.p4Tipo || "injetavel");
@@ -3354,7 +3367,7 @@ function renderMedicacoes(animalId){
     '<span style="font-size:13px;font-weight:500">'+r.nome+(r.dose?(' - '+r.dose):'')+'</span>'+
     '<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--text-muted)">'+r.data+'</span>'+
     '<span onclick="excluirMedicacao(\''+animalId+'\','+i+',event)" style="cursor:pointer;color:var(--text-danger);font-size:14px">🗑️</span></div></div>'+
-    (r.lembrete ? '<p style="font-size:11px;color:var(--text-accent);margin:2px 0 0">'+(LABEL_LEMBRETE[r.lembrete]||'')+'</p>' : '')+
+    (r.lembrete ? '<p style="font-size:11px;color:var(--text-accent);margin:2px 0 0">'+(LABEL_LEMBRETE[r.lembrete]||'')+(r.duracaoDias?(" - até "+r.duracaoDias+" dia"+(r.duracaoDias===1?"":"s")):"")+'</p>' : '')+
     (r.obs ? '<p style="font-size:12px;color:var(--text-secondary);margin:4px 0 0">'+r.obs+'</p>' : '')+
     '</div>'
   ).join("");
@@ -3375,6 +3388,7 @@ function prepCadastroMedicacao(){
   document.getElementById("med-dose").value = "";
   document.getElementById("med-data").value = "";
   document.getElementById("med-lembrete").value = "";
+  document.getElementById("med-duracao").value = "";
   document.getElementById("med-obs").value = "";
   setView("cadastro-medicacao");
 }
@@ -3386,13 +3400,15 @@ async function salvarMedicacao(){
   const dataInput = document.getElementById("med-data").value;
   const data = dataInput ? dataInput.split("-").reverse().join("/") : dataHojeBR();
   const lembrete = document.getElementById("med-lembrete").value || "";
+  const duracaoInput = document.getElementById("med-duracao").value;
+  const duracaoDias = duracaoInput ? (parseInt(duracaoInput,10)||null) : null;
   const obs = document.getElementById("med-obs").value;
   if(!medicacoes[id]) medicacoes[id] = [];
-  const novo = {nome:nome, dose:dose, data:data, lembrete:lembrete, obs:obs};
+  const novo = {nome:nome, dose:dose, data:data, lembrete:lembrete, duracaoDias:duracaoDias, obs:obs};
   if(usuarioAtualId){
     const novoId = gerarUUID();
     await offlineInsert("medicacoes", {
-      id:novoId, user_id:usuarioAtualId, animal_id:id, nome:nome, dose:dose, data:data, lembrete:lembrete, obs:obs
+      id:novoId, user_id:usuarioAtualId, animal_id:id, nome:nome, dose:dose, data:data, lembrete:lembrete, duracao_dias:duracaoDias, obs:obs
     });
     novo.id = novoId;
   }
@@ -4919,7 +4935,7 @@ async function carregarDadosIniciais(){
   Object.keys(medicacoes).forEach(k=>delete medicacoes[k]);
   med.filter(m=>m.user_id===uid).forEach(m=>{
     if(!medicacoes[m.animal_id]) medicacoes[m.animal_id] = [];
-    medicacoes[m.animal_id].push({id:m.id, nome:m.nome, dose:m.dose, data:m.data, lembrete:m.lembrete, obs:m.obs});
+    medicacoes[m.animal_id].push({id:m.id, nome:m.nome, dose:m.dose, data:m.data, lembrete:m.lembrete, duracaoDias:m.duracao_dias, obs:m.obs});
   });
 
   Object.keys(estatisticas).forEach(k=>delete estatisticas[k]);
@@ -5046,8 +5062,8 @@ function renderEtapasE2(){
   ).join("");
 }
 function editarEtapaE2(i,val){ etapasE2[i]=val; atualizarPrevisaoSincHormonal(); }
-function adicionarEtapaE2(){ etapasE2.push("1mL"); renderEtapasE2(); atualizarPrevisaoSincHormonal(); }
-function removerEtapaE2(i){ etapasE2.splice(i,1); renderEtapasE2(); atualizarPrevisaoSincHormonal(); }
+function adicionarEtapaE2(){ etapasE2.push("1mL"); renderEtapasE2(); if(!document.getElementById("sinc-horm-p4-data").value){ sugerirDataP4(); } else { atualizarPrevisaoSincHormonal(); } }
+function removerEtapaE2(i){ etapasE2.splice(i,1); renderEtapasE2(); if(!document.getElementById("sinc-horm-p4-data").value){ sugerirDataP4(); } else { atualizarPrevisaoSincHormonal(); } }
 function toggleSincHormonal(chk){
   document.getElementById("bloco-sinc-hormonal").style.display = chk.checked ? "block":"none";
   if(chk.checked && !etapasE2.length){
@@ -5055,6 +5071,19 @@ function toggleSincHormonal(chk){
     renderEtapasE2();
     atualizarPrevisaoSincHormonal();
   }
+}
+function sugerirDataP4(){
+  const dataInicioStr = document.getElementById("sinc-horm-data-inicio").value;
+  if(!dataInicioStr || !etapasE2.length){ alert("Preencha a data de início e ao menos um dia de E2 primeiro."); return; }
+  const dataInicio = new Date(dataInicioStr+"T00:00:00");
+  const sugestao = new Date(dataInicio);
+  sugestao.setDate(sugestao.getDate()+etapasE2.length-1+1+1);
+  document.getElementById("sinc-horm-p4-data").value = isoDeData(sugestao);
+  atualizarPrevisaoSincHormonal();
+}
+function onDataInicioSincChange(){
+  if(!document.getElementById("sinc-horm-p4-data").value){ sugerirDataP4(); }
+  atualizarPrevisaoSincHormonal();
 }
 function setP4Tipo(tipo){
   estado.p4TipoSelecionado = tipo;
@@ -5071,20 +5100,16 @@ function setP4TipoVisualReset(){
   document.getElementById("p4-implante").style.color = "";
 }
 function atualizarPrevisaoSincHormonal(){
-  const dataInicioStr = document.getElementById("sinc-horm-data-inicio").value;
-  const pulaDias = parseInt(document.getElementById("sinc-horm-pula-dias").value,10) || 0;
-  if(!dataInicioStr || !etapasE2.length){ document.getElementById("sinc-horm-previsao").textContent = "-"; return; }
-  const dataInicio = new Date(dataInicioStr+"T00:00:00");
-  const d0 = new Date(dataInicio);
-  d0.setDate(d0.getDate()+etapasE2.length-1+pulaDias+1);
+  const dataP4Str = document.getElementById("sinc-horm-p4-data").value;
+  if(!dataP4Str){ document.getElementById("sinc-horm-previsao").textContent = "-"; return; }
   const p4Label = estado.p4TipoSelecionado==="implante" ? "Colocar implante de P4" : (estado.p4TipoSelecionado==="injetavel" ? "Aplicar P4 injetável" : "Aplicar P4");
-  document.getElementById("sinc-horm-previsao").textContent = p4Label+" em "+dataISOparaBR(isoDeData(d0))+" (D0)";
+  document.getElementById("sinc-horm-previsao").textContent = p4Label+" em "+dataISOparaBR(dataP4Str)+" (D0)";
 }
 function resetSincHormonalUI(){
   document.getElementById("chk-sinc-hormonal").checked = false;
   document.getElementById("bloco-sinc-hormonal").style.display = "none";
   document.getElementById("sinc-horm-data-inicio").value = "";
-  document.getElementById("sinc-horm-pula-dias").value = "1";
+  document.getElementById("sinc-horm-p4-data").value = "";
   etapasE2 = [];
   renderEtapasE2();
   estado.p4TipoSelecionado = null;
