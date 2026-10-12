@@ -419,6 +419,31 @@
   <button onclick="salvarSanitario()" style="width:100%;background:var(--fill-accent);color:var(--on-accent);border:none">Salvar registro</button>
 </div>
 
+<div id="view-medicacoes" style="padding:16px;display:none">
+  <div style="display:flex;flex-direction:column;gap:8px" id="med-lista"></div>
+  <p id="med-vazio" style="display:none;font-size:12px;color:var(--text-muted);margin:0 0 12px">Nenhuma medicação cadastrada ainda.</p>
+  <button onclick="prepCadastroMedicacao()" style="width:100%;margin-top:12px">+ Adicionar medicação</button>
+</div>
+
+<div id="view-cadastro-medicacao" style="padding:16px;display:none">
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Medicação</p>
+  <input id="med-nome" style="margin-bottom:10px" placeholder="Ex: Penicilina"/>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Dose</p>
+  <input id="med-dose" style="margin-bottom:10px" placeholder="Ex: 20ml"/>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data</p>
+  <input id="med-data" type="date" style="margin-bottom:10px"/>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Lembrete</p>
+  <select id="med-lembrete" style="margin-bottom:10px">
+    <option value="">Não repetir (só nesta data)</option>
+    <option value="diario">Lembrar diariamente</option>
+    <option value="semanal">Lembrar semanalmente</option>
+    <option value="mensal">Lembrar mensalmente</option>
+  </select>
+  <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Observação (opcional)</p>
+  <textarea id="med-obs" style="min-height:40px;margin-bottom:14px" placeholder="Via de administração, motivo, etc"></textarea>
+  <button onclick="salvarMedicacao()" style="width:100%;background:var(--fill-accent);color:var(--on-accent);border:none">Salvar medicação</button>
+</div>
+
 <div id="view-perda-gestacional" style="padding:16px;display:none">
   <p style="font-size:12px;color:var(--text-muted);margin:0 0 14px">Isso encerra a gestação atual deste animal e registra o evento no histórico.</p>
   <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px">Tipo</p>
@@ -593,6 +618,26 @@
       <input id="inducao-hora" type="time" onchange="atualizarPrevisaoInducao()" style="margin-bottom:8px"/>
       <p style="font-size:12px;color:var(--text-accent);font-weight:500;margin:0" id="inducao-previsao">-</p>
     </div>
+  </div>
+
+  <div id="bloco-sinc-hormonal-wrapper" style="display:none">
+  <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px"><input type="checkbox" id="chk-sinc-hormonal" onchange="toggleSincHormonal(this)" style="width:auto"/>Sincronização hormonal</label>
+  <div id="bloco-sinc-hormonal" style="display:none;background:var(--bg-accent);border-radius:10px;padding:10px;margin-bottom:10px">
+    <p style="font-size:11px;color:var(--text-secondary);margin:0 0 8px">Protocolo de sincronização com estradiol (E2) e progesterona (P4). Ajuste os dias e doses de E2 como preferir.</p>
+    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Data de início (dia 1 de E2)</p>
+    <input id="sinc-horm-data-inicio" type="date" onchange="atualizarPrevisaoSincHormonal()" style="margin-bottom:10px"/>
+    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Doses de E2 (um dia após o outro)</p>
+    <div id="lista-etapas-e2" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+    <button type="button" onclick="adicionarEtapaE2()" style="width:100%;margin-bottom:10px">+ Adicionar dia de E2</button>
+    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Pular quantos dias antes de aplicar a P4</p>
+    <input id="sinc-horm-pula-dias" type="number" min="0" value="1" onchange="atualizarPrevisaoSincHormonal()" style="width:70px;margin-bottom:10px"/>
+    <p style="font-size:12px;color:var(--text-secondary);margin:0 0 8px">Forma de progesterona (P4)</p>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button type="button" onclick="setP4Tipo('injetavel')" id="p4-injetavel" style="flex:1;border:none">Injetável</button>
+      <button type="button" onclick="setP4Tipo('implante')" id="p4-implante" style="flex:1;border:none">Implante</button>
+    </div>
+    <p style="font-size:12px;color:var(--text-accent);font-weight:500;margin:0" id="sinc-horm-previsao">-</p>
+  </div>
   </div>
 
   <div id="bloco-marcar-ovulacao-wrapper">
@@ -1022,7 +1067,7 @@ function gerarUUID(){
 }
 
 // ===== INFRAESTRUTURA OFFLINE =====
-const TABELAS_OFFLINE = ["propriedades","animais","historico","manejo_sanitario","estatisticas","gestacoes","financeiro","deslocamentos","produtos","compras","consumos","servicos","servico_itens","transferencias","inducoes","retornos","coberturas","ovulacoes","profiles"];
+const TABELAS_OFFLINE = ["propriedades","animais","historico","manejo_sanitario","medicacoes","estatisticas","gestacoes","financeiro","deslocamentos","produtos","compras","consumos","servicos","servico_itens","transferencias","inducoes","retornos","coberturas","ovulacoes","protocolos_sinc","profiles"];
 let idbDB = null;
 let usuarioAtualId = null;
 
@@ -1269,6 +1314,7 @@ const protocoloSaude = {
   ]
 };
 const manejoSanitario = {};
+const medicacoes = {};
 
 const estatisticas = {};
 function contarGestacoesPositivas(propId, categoriaLabel){
@@ -1323,6 +1369,7 @@ const compras = [];
 const consumos = [];
 const transferencias = [];
 const inducoes = [];
+const protocolosSinc = [];
 const retornos = [];
 const coberturas = [];
 const ovulacoes = [];
@@ -1405,8 +1452,68 @@ function calcularLembretesVacinais(){
   lembretes.sort((a,b)=>a.dias-b.dias);
   return lembretes;
 }
+function calcularLembretesMedicacoes(){
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const umDiaMs = 24*60*60*1000;
+  const intervalos = {diario:1, semanal:7, mensal:30};
+  const lembretes = [];
+  animais.forEach(a=>{
+    const registros = medicacoes[a.id]||[];
+    registros.forEach(r=>{
+      if(!r.data) return;
+      const dataBase = parseDataBR2(r.data);
+      if(!dataBase) return;
+      dataBase.setHours(0,0,0,0);
+      const nomeExibicao = r.nome+(r.dose?(" - "+r.dose):"");
+      if(!r.lembrete){
+        const diffDias = Math.round((dataBase-hoje)/umDiaMs);
+        if(diffDias<=14){
+          lembretes.push({animal:a.nome, nome:nomeExibicao, dias:diffDias, atrasada:diffDias<0});
+        }
+      } else {
+        const intervalo = intervalos[r.lembrete];
+        if(!intervalo) return;
+        let proxima = new Date(dataBase);
+        if(proxima < hoje){
+          const passos = Math.ceil((hoje-proxima)/(intervalo*umDiaMs));
+          proxima.setDate(proxima.getDate()+passos*intervalo);
+        }
+        const diffDias = Math.round((proxima-hoje)/umDiaMs);
+        if(diffDias<=14){
+          lembretes.push({animal:a.nome, nome:nomeExibicao, dias:diffDias, atrasada:false});
+        }
+      }
+    });
+  });
+  return lembretes;
+}
+function calcularLembretesSincHormonal(){
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const umDiaMs = 24*60*60*1000;
+  const lembretes = [];
+  protocolosSinc.forEach(p=>{
+    const inicio = parseDataBR2(p.dataInicio);
+    if(!inicio) return;
+    (p.etapasE2||[]).forEach((dose,i)=>{
+      const dataEtapa = new Date(inicio); dataEtapa.setDate(dataEtapa.getDate()+i);
+      const diffDias = Math.round((dataEtapa-hoje)/umDiaMs);
+      if(diffDias<=14){
+        lembretes.push({animal:p.animalNome, nome:"Sincronização - E2 "+dose+" (dia "+(i+1)+")", dias:diffDias, atrasada:diffDias<0});
+      }
+    });
+    const dataP4 = parseDataBR2(p.d0);
+    if(dataP4){
+      const diffDiasP4 = Math.round((dataP4-hoje)/umDiaMs);
+      if(diffDiasP4<=14){
+        const label = p.p4Tipo==="implante" ? "Sincronização - Colocar implante de P4 (D0)" : "Sincronização - Aplicar P4 injetável (D0)";
+        lembretes.push({animal:p.animalNome, nome:label, dias:diffDiasP4, atrasada:diffDiasP4<0});
+      }
+    }
+  });
+  return lembretes;
+}
 function renderLembretes(){
-  const lembretes = calcularLembretesVacinais();
+  const lembretes = calcularLembretesVacinais().concat(calcularLembretesMedicacoes()).concat(calcularLembretesSincHormonal()).sort((a,b)=>a.dias-b.dias);
   const bloco = document.getElementById("bloco-lembretes");
   if(!lembretes.length){ bloco.style.display="none"; return; }
   bloco.style.display="block";
@@ -1777,6 +1884,11 @@ async function registrarResultadosReproducao(){
         : (transferenciaVinculada ? {tipo:"transferencia", id:transferenciaVinculada.id, criou:transferenciaCriada} : null);
     }
     if(resultado==="positiva"){
+      // Gestação confirmada: se a receptora estava marcada como sincronizada com
+      // uma doadora, desfaz esse vínculo automaticamente neste mesmo registro.
+      if(catAnimal==="receptora" && entradaAtual){
+        entradaAtual.dados.sincronizada = {checked:false, dessincronizadaAuto:true};
+      }
       if(!gestacoes[propId]) gestacoes[propId] = [];
       const dataCobertura = coberturaVinculada ? coberturaVinculada.data : (transferenciaVinculada ? transferenciaVinculada.dataLavado : dataDg);
       if(uid){
@@ -1981,6 +2093,45 @@ async function salvarAtendimento(){
       if(indExistente.id) await offlineDelete("inducoes", indExistente.id);
       const idx = inducoes.indexOf(indExistente);
       if(idx>-1) inducoes.splice(idx,1);
+    }
+
+    const protExistente = protocolosSinc.find(p=>p.origemHistoricoId===historicoDbId);
+    const chkSincHorm = document.getElementById("chk-sinc-hormonal");
+    if(chkSincHorm && chkSincHorm.checked && etapasE2.length && estado.p4TipoSelecionado){
+      const dataInicioISO = document.getElementById("sinc-horm-data-inicio").value || new Date().toISOString().slice(0,10);
+      const pulaDias = parseInt(document.getElementById("sinc-horm-pula-dias").value,10) || 0;
+      const dataInicioBR = dataISOparaBR(dataInicioISO) || dataHojeBR();
+      const d0Date = new Date(dataInicioISO+"T00:00:00");
+      d0Date.setDate(d0Date.getDate()+etapasE2.length-1+pulaDias+1);
+      const d0BR = dataISOparaBR(isoDeData(d0Date));
+      const dadosProt = {
+        animalId:estado.animal.id, animalNome:estado.animal.nome, propriedade:estado.animal.propriedade,
+        dataInicio:dataInicioBR, etapasE2:etapasE2.slice(), pulaDias:pulaDias, p4Tipo:estado.p4TipoSelecionado, d0:d0BR,
+        origemHistoricoId:historicoDbId
+      };
+      if(protExistente){
+        Object.assign(protExistente, dadosProt);
+        if(protExistente.id){
+          await offlineUpdate("protocolos_sinc", protExistente.id, {
+            data_inicio:dadosProt.dataInicio, etapas_e2:dadosProt.etapasE2, pula_dias:dadosProt.pulaDias, p4_tipo:dadosProt.p4Tipo, d0:dadosProt.d0
+          });
+        }
+      } else {
+        if(uid){
+          const novoId = gerarUUID();
+          await offlineInsert("protocolos_sinc", {
+            id:novoId, user_id:uid, animal_id:dadosProt.animalId, animal_nome:dadosProt.animalNome, propriedade_id:dadosProt.propriedade,
+            data_inicio:dadosProt.dataInicio, etapas_e2:dadosProt.etapasE2, pula_dias:dadosProt.pulaDias, p4_tipo:dadosProt.p4Tipo, d0:dadosProt.d0,
+            origem_historico_id:historicoDbId
+          });
+          dadosProt.id = novoId;
+        }
+        protocolosSinc.unshift(dadosProt);
+      }
+    } else if(protExistente){
+      if(protExistente.id) await offlineDelete("protocolos_sinc", protExistente.id);
+      const idxProt = protocolosSinc.indexOf(protExistente);
+      if(idxProt>-1) protocolosSinc.splice(idxProt,1);
     }
 
     const retExistente = retornos.find(r=>r.origemHistoricoId===historicoDbId);
@@ -2994,6 +3145,7 @@ function abrirHistoricoDetalhe(animalId, idx){
   } else if(entry.tipoForm==="repro-femea"){
     document.getElementById("bloco-receptora").style.display = estado.animal.categoria==="receptora" ? "block":"none";
     document.getElementById("bloco-doadora").style.display = estado.animal.categoria==="doadora" ? "block":"none";
+    document.getElementById("bloco-sinc-hormonal-wrapper").style.display = estado.animal.categoria==="receptora" ? "block":"none";
     document.getElementById("femea-ov-esq").value = d.ovarioEsq||"";
     document.getElementById("femea-ov-dir").value = d.ovarioDir||"";
     document.getElementById("femea-edema").value = d.edema||"1";
@@ -3073,6 +3225,18 @@ function abrirHistoricoDetalhe(animalId, idx){
       document.getElementById("bloco-inducao-detalhe").style.display = "none";
       estado.medicamentoInducao = null;
       setMedicamentoInducaoVisualReset();
+    }
+    const protVinculado = entry.dbId ? protocolosSinc.find(p=>p.origemHistoricoId===entry.dbId) : null;
+    if(protVinculado){
+      document.getElementById("chk-sinc-hormonal").checked = true;
+      document.getElementById("bloco-sinc-hormonal").style.display = "block";
+      document.getElementById("sinc-horm-data-inicio").value = dataBRparaISO(protVinculado.dataInicio)||"";
+      document.getElementById("sinc-horm-pula-dias").value = protVinculado.pulaDias!=null ? protVinculado.pulaDias : 1;
+      etapasE2 = (protVinculado.etapasE2 && protVinculado.etapasE2.length) ? protVinculado.etapasE2.slice() : ["1mL","2mL","1mL"];
+      renderEtapasE2();
+      setP4Tipo(protVinculado.p4Tipo || "injetavel");
+    } else {
+      resetSincHormonalUI();
     }
     const retVinculado = entry.dbId ? retornos.find(r=>r.origemHistoricoId===entry.dbId) : null;
     if(retVinculado){
@@ -3180,6 +3344,61 @@ async function salvarSanitario(){
   manejoSanitario[id].unshift(novo);
   voltar();
 }
+const LABEL_LEMBRETE = {diario:"🔔 Lembrete diário", semanal:"🔔 Lembrete semanal", mensal:"🔔 Lembrete mensal"};
+function renderMedicacoes(animalId){
+  const lista = medicacoes[animalId] || [];
+  document.getElementById("med-vazio").style.display = lista.length ? "none":"block";
+  document.getElementById("med-lista").innerHTML = lista.map((r,i)=>
+    '<div style="background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">'+
+    '<span style="font-size:13px;font-weight:500">'+r.nome+(r.dose?(' - '+r.dose):'')+'</span>'+
+    '<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--text-muted)">'+r.data+'</span>'+
+    '<span onclick="excluirMedicacao(\''+animalId+'\','+i+',event)" style="cursor:pointer;color:var(--text-danger);font-size:14px">🗑️</span></div></div>'+
+    (r.lembrete ? '<p style="font-size:11px;color:var(--text-accent);margin:2px 0 0">'+(LABEL_LEMBRETE[r.lembrete]||'')+'</p>' : '')+
+    (r.obs ? '<p style="font-size:12px;color:var(--text-secondary);margin:4px 0 0">'+r.obs+'</p>' : '')+
+    '</div>'
+  ).join("");
+}
+async function excluirMedicacao(animalId, idx, ev){
+  ev.stopPropagation();
+  if(!confirm("Excluir esta medicação?")) return;
+  const entry = medicacoes[animalId][idx];
+  if(entry && entry.id){ await offlineDelete("medicacoes", entry.id); }
+  medicacoes[animalId].splice(idx,1);
+  renderMedicacoes(animalId);
+}
+function abrirMedicacoes(){
+  setView("medicacoes");
+}
+function prepCadastroMedicacao(){
+  document.getElementById("med-nome").value = "";
+  document.getElementById("med-dose").value = "";
+  document.getElementById("med-data").value = "";
+  document.getElementById("med-lembrete").value = "";
+  document.getElementById("med-obs").value = "";
+  setView("cadastro-medicacao");
+}
+async function salvarMedicacao(){
+  const id = estado.animal.id;
+  const nome = document.getElementById("med-nome").value.trim();
+  if(!nome){ alert("Informe o nome da medicação."); return; }
+  const dose = document.getElementById("med-dose").value.trim();
+  const dataInput = document.getElementById("med-data").value;
+  const data = dataInput ? dataInput.split("-").reverse().join("/") : dataHojeBR();
+  const lembrete = document.getElementById("med-lembrete").value || "";
+  const obs = document.getElementById("med-obs").value;
+  if(!medicacoes[id]) medicacoes[id] = [];
+  const novo = {nome:nome, dose:dose, data:data, lembrete:lembrete, obs:obs};
+  if(usuarioAtualId){
+    const novoId = gerarUUID();
+    await offlineInsert("medicacoes", {
+      id:novoId, user_id:usuarioAtualId, animal_id:id, nome:nome, dose:dose, data:data, lembrete:lembrete, obs:obs
+    });
+    novo.id = novoId;
+  }
+  medicacoes[id].unshift(novo);
+  voltar();
+}
 function abrirPerfil(id){
   estado.animal = animais.find(a=>a.id===id);
   const a = estado.animal;
@@ -3224,7 +3443,8 @@ function abrirPerfil(id){
     } else { embriaoEl.style.display = "none"; }
     const sincEl = document.getElementById("perfil-sincronizada-info");
     const historicoAnimal = historico[a.id] || [];
-    const ultimaSinc = historicoAnimal.find(h=>h.dados && h.dados.sincronizada && h.dados.sincronizada.checked);
+    const ultimoRegistroSinc = historicoAnimal.find(h=>h.dados && h.dados.sincronizada && typeof h.dados.sincronizada.checked==="boolean");
+    const ultimaSinc = (ultimoRegistroSinc && ultimoRegistroSinc.dados.sincronizada.checked) ? ultimoRegistroSinc : null;
     if(ultimaSinc){
       const doadoraSinc = ultimaSinc.dados.sincronizada.doadoraId ? animais.find(x=>x.id===ultimaSinc.dados.sincronizada.doadoraId) : null;
       const nomeDoadoraSinc = doadoraSinc ? doadoraSinc.nome : "(doadora não encontrada)";
@@ -3244,6 +3464,7 @@ function abrirPerfil(id){
   } else {
     botoes += '<button onclick="abrirForm(\'repro-femea\')" style="width:100%;text-align:left">🔬 Atendimento reprodutivo</button>';
   }
+  botoes += '<button onclick="abrirMedicacoes()" style="width:100%;text-align:left">💊 Medicações</button>';
   botoes += '<button onclick="abrirManejoSanitario()" style="width:100%;text-align:left">🛡️ Manejo sanitário</button>';
   document.getElementById("perfil-botoes").innerHTML = botoes;
   renderHistorico(id);
@@ -3269,6 +3490,7 @@ function abrirForm(tipo){
     document.getElementById("chk-sincronizada").checked = false;
     document.getElementById("bloco-sincronizada").style.display = "none";
     document.getElementById("bloco-doadora").style.display = estado.animal.categoria==="doadora" ? "block":"none";
+    document.getElementById("bloco-sinc-hormonal-wrapper").style.display = estado.animal.categoria==="receptora" ? "block":"none";
     document.getElementById("chk-marcar-ovulacao").checked = false;
     document.getElementById("bloco-marcar-ovulacao").style.display = "none";
     document.getElementById("ovulacao-data").value = "";
@@ -3286,6 +3508,7 @@ function abrirForm(tipo){
     document.getElementById("inducao-hora").value = "";
     estado.medicamentoInducao = null;
     setMedicamentoInducaoVisualReset();
+    resetSincHormonalUI();
     document.getElementById("chk-cobertura").checked = false;
     document.getElementById("chk-dg").checked = false;
     document.getElementById("bloco-cobertura").style.display = "none";
@@ -4548,9 +4771,9 @@ async function sair(){
   setView("login");
 }
 
-const titles = {login:"Entrar", dashboard:"EquiBR", propriedades:"Haras/Propriedades", "propriedade-detalhes":"Propriedade", "cadastro-lancamento":"Novo lançamento", "cadastro-deslocamento":"Novo deslocamento", atender:"Atender", "cadastro-propriedade":"Novo haras", animais:"Animais", perfil:"Ficha do animal", "foto-ampliada":"Foto do animal", "manejo-sanitario":"Manejo sanitário", "cadastro-sanitario":"Novo registro sanitário", "perda-gestacional":"Absorção/Aborto", "editar-gestacao":"Editar gestação", "editar-cobertura":"Editar cobertura", "editar-lavado":"Editar transferência", "form-clinico":"Atendimento clínico", "form-repro-femea":"Exame reprodutivo", "form-coleta":"Coleta de sêmen", cadastro:"Novo animal", relatorio:"Relatório", menu:"Menu", "meus-dados":"Meus dados", servicos:"Serviços", "cadastro-servico":"Novo serviço", "servico-detalhe":"Serviço", estoque:"Estoque", "cadastro-produto":"Novo produto", "cadastro-compra":"Registrar compra", "assinatura-bloqueada":"Acesso indisponível"};
+const titles = {login:"Entrar", dashboard:"EquiBR", propriedades:"Haras/Propriedades", "propriedade-detalhes":"Propriedade", "cadastro-lancamento":"Novo lançamento", "cadastro-deslocamento":"Novo deslocamento", atender:"Atender", "cadastro-propriedade":"Novo haras", animais:"Animais", perfil:"Ficha do animal", "foto-ampliada":"Foto do animal", "manejo-sanitario":"Manejo sanitário", "cadastro-sanitario":"Novo registro sanitário", "medicacoes":"Medicações", "cadastro-medicacao":"Nova medicação", "perda-gestacional":"Absorção/Aborto", "editar-gestacao":"Editar gestação", "editar-cobertura":"Editar cobertura", "editar-lavado":"Editar transferência", "form-clinico":"Atendimento clínico", "form-repro-femea":"Exame reprodutivo", "form-coleta":"Coleta de sêmen", cadastro:"Novo animal", relatorio:"Relatório", menu:"Menu", "meus-dados":"Meus dados", servicos:"Serviços", "cadastro-servico":"Novo serviço", "servico-detalhe":"Serviço", estoque:"Estoque", "cadastro-produto":"Novo produto", "cadastro-compra":"Registrar compra", "assinatura-bloqueada":"Acesso indisponível"};
 function setView(name){
-  ["login","dashboard","propriedades","propriedade-detalhes","cadastro-lancamento","cadastro-deslocamento","atender","cadastro-propriedade","animais","perfil","foto-ampliada","manejo-sanitario","cadastro-sanitario","perda-gestacional","editar-gestacao","editar-cobertura","editar-lavado","form-clinico","form-repro-femea","form-coleta","cadastro","relatorio","menu","meus-dados","servicos","cadastro-servico","servico-detalhe","estoque","cadastro-produto","cadastro-compra","assinatura-bloqueada"].forEach(v=>{
+  ["login","dashboard","propriedades","propriedade-detalhes","cadastro-lancamento","cadastro-deslocamento","atender","cadastro-propriedade","animais","perfil","foto-ampliada","manejo-sanitario","cadastro-sanitario","medicacoes","cadastro-medicacao","perda-gestacional","editar-gestacao","editar-cobertura","editar-lavado","form-clinico","form-repro-femea","form-coleta","cadastro","relatorio","menu","meus-dados","servicos","cadastro-servico","servico-detalhe","estoque","cadastro-produto","cadastro-compra","assinatura-bloqueada"].forEach(v=>{
     document.getElementById("view-"+v).style.display = v===name ? "block":"none";
   });
   document.getElementById("screen-title").textContent = (name==="cadastro" && estado.animalEditando ? "Editar animal" : (titles[name]||""))+(estado.editandoHistorico && name.indexOf("form")===0 ? " (editando)" : "");
@@ -4566,6 +4789,7 @@ function setView(name){
   if(name==="atender") renderListaPropriedades("lista-propriedades-atender","atender");
   if(name==="perfil" && estado.animal) renderHistorico(estado.animal.id);
   if(name==="manejo-sanitario" && estado.animal) renderManejoSanitario(estado.animal.id);
+  if(name==="medicacoes" && estado.animal) renderMedicacoes(estado.animal.id);
   if(name==="relatorio") resetRelatorio();
   if(name==="servicos") renderServicos();
   if(name==="servico-detalhe") renderServicoDetalhe();
@@ -4613,7 +4837,7 @@ function restaurarEstadoNavegacao(){
 
     // Formulários/telas de detalhe: como o que estava digitado se perde no recarregamento
     // mesmo assim, volta pra tela "mãe" mais próxima em vez de ir pro início
-    if(["foto-ampliada","manejo-sanitario","cadastro-sanitario","perda-gestacional","form-clinico","form-repro-femea","form-coleta"].indexOf(view)>-1 && animalOk){
+    if(["foto-ampliada","manejo-sanitario","cadastro-sanitario","medicacoes","cadastro-medicacao","perda-gestacional","form-clinico","form-repro-femea","form-coleta"].indexOf(view)>-1 && animalOk){
       abrirPerfil(salvo.animalId); return true;
     }
     if(["cadastro-lancamento","cadastro-deslocamento","editar-gestacao","editar-cobertura","editar-lavado","cadastro"].indexOf(view)>-1 && propOk){
@@ -4648,11 +4872,12 @@ async function carregarDadosIniciais(){
   if(!usuarioAtualId) return;
   const uid = usuarioAtualId;
 
-  const [props, ans, hist, msan, est, gest, fin, desl, prods, compr, cons, servsRaw, itensServ, trans, ind, ret, cob, ovul] = await Promise.all([
+  const [props, ans, hist, msan, med, est, gest, fin, desl, prods, compr, cons, servsRaw, itensServ, trans, ind, ret, cob, ovul, prot] = await Promise.all([
     carregarTabela("propriedades"),
     carregarTabela("animais"),
     carregarTabela("historico"),
     carregarTabela("manejo_sanitario"),
+    carregarTabela("medicacoes"),
     carregarTabela("estatisticas"),
     carregarTabela("gestacoes"),
     carregarTabela("financeiro"),
@@ -4666,7 +4891,8 @@ async function carregarDadosIniciais(){
     carregarTabela("inducoes"),
     carregarTabela("retornos"),
     carregarTabela("coberturas"),
-    carregarTabela("ovulacoes")
+    carregarTabela("ovulacoes"),
+    carregarTabela("protocolos_sinc")
   ]);
 
   propriedades.length = 0;
@@ -4688,6 +4914,12 @@ async function carregarDadosIniciais(){
   msan.filter(m=>m.user_id===uid).forEach(m=>{
     if(!manejoSanitario[m.animal_id]) manejoSanitario[m.animal_id] = [];
     manejoSanitario[m.animal_id].push({id:m.id, tipo:m.tipo, nome:m.nome, data:m.data, obs:m.obs});
+  });
+
+  Object.keys(medicacoes).forEach(k=>delete medicacoes[k]);
+  med.filter(m=>m.user_id===uid).forEach(m=>{
+    if(!medicacoes[m.animal_id]) medicacoes[m.animal_id] = [];
+    medicacoes[m.animal_id].push({id:m.id, nome:m.nome, dose:m.dose, data:m.data, lembrete:m.lembrete, obs:m.obs});
   });
 
   Object.keys(estatisticas).forEach(k=>delete estatisticas[k]);
@@ -4747,6 +4979,9 @@ async function carregarDadosIniciais(){
   inducoes.length = 0;
   ind.filter(i=>i.user_id===uid).forEach(i=>inducoes.push({id:i.id, animalId:i.animal_id, animalNome:i.animal_nome, propriedade:i.propriedade_id, medicamento:i.medicamento, tipoSemen:i.tipo_semen, horaInducao:i.hora_inducao, dataInducao:i.data_inducao, previsao:i.previsao, origemHistoricoId:i.origem_historico_id||null}));
 
+  protocolosSinc.length = 0;
+  prot.filter(p=>p.user_id===uid).forEach(p=>protocolosSinc.push({id:p.id, animalId:p.animal_id, animalNome:p.animal_nome, propriedade:p.propriedade_id, dataInicio:p.data_inicio, etapasE2:p.etapas_e2||[], pulaDias:p.pula_dias, p4Tipo:p.p4_tipo, d0:p.d0, origemHistoricoId:p.origem_historico_id||null}));
+
   retornos.length = 0;
   ret.filter(r=>r.user_id===uid).forEach(r=>retornos.push({id:r.id, animalId:r.animal_id, animalNome:r.animal_nome, propriedade:r.propriedade_id, data:r.data, origemHistoricoId:r.origem_historico_id||null}));
 
@@ -4796,6 +5031,66 @@ setNavAtivo("dashboard");
 setPropTab("resultados");
 setStatusLancamento("pendente");
 
+function isoDeData(d){
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), dia=String(d.getDate()).padStart(2,"0");
+  return y+"-"+m+"-"+dia;
+}
+let etapasE2 = [];
+function renderEtapasE2(){
+  document.getElementById("lista-etapas-e2").innerHTML = etapasE2.map((dose,i)=>
+    '<div style="display:flex;gap:6px;align-items:center">'+
+    '<span style="font-size:12px;color:var(--text-muted);width:46px">Dia '+(i+1)+'</span>'+
+    '<input type="text" value="'+(dose||"")+'" style="flex:1" placeholder="Dose (ex: 1mL)" onchange="editarEtapaE2('+i+',this.value)"/>'+
+    (etapasE2.length>1 ? '<span onclick="removerEtapaE2('+i+')" style="cursor:pointer;color:var(--text-danger);font-size:14px">🗑️</span>' : '')+
+    '</div>'
+  ).join("");
+}
+function editarEtapaE2(i,val){ etapasE2[i]=val; atualizarPrevisaoSincHormonal(); }
+function adicionarEtapaE2(){ etapasE2.push("1mL"); renderEtapasE2(); atualizarPrevisaoSincHormonal(); }
+function removerEtapaE2(i){ etapasE2.splice(i,1); renderEtapasE2(); atualizarPrevisaoSincHormonal(); }
+function toggleSincHormonal(chk){
+  document.getElementById("bloco-sinc-hormonal").style.display = chk.checked ? "block":"none";
+  if(chk.checked && !etapasE2.length){
+    etapasE2 = ["1mL","2mL","1mL"];
+    renderEtapasE2();
+    atualizarPrevisaoSincHormonal();
+  }
+}
+function setP4Tipo(tipo){
+  estado.p4TipoSelecionado = tipo;
+  document.getElementById("p4-injetavel").style.background = tipo==="injetavel" ? "var(--fill-accent)" : "";
+  document.getElementById("p4-injetavel").style.color = tipo==="injetavel" ? "var(--on-accent)" : "";
+  document.getElementById("p4-implante").style.background = tipo==="implante" ? "var(--fill-accent)" : "";
+  document.getElementById("p4-implante").style.color = tipo==="implante" ? "var(--on-accent)" : "";
+  atualizarPrevisaoSincHormonal();
+}
+function setP4TipoVisualReset(){
+  document.getElementById("p4-injetavel").style.background = "";
+  document.getElementById("p4-injetavel").style.color = "";
+  document.getElementById("p4-implante").style.background = "";
+  document.getElementById("p4-implante").style.color = "";
+}
+function atualizarPrevisaoSincHormonal(){
+  const dataInicioStr = document.getElementById("sinc-horm-data-inicio").value;
+  const pulaDias = parseInt(document.getElementById("sinc-horm-pula-dias").value,10) || 0;
+  if(!dataInicioStr || !etapasE2.length){ document.getElementById("sinc-horm-previsao").textContent = "-"; return; }
+  const dataInicio = new Date(dataInicioStr+"T00:00:00");
+  const d0 = new Date(dataInicio);
+  d0.setDate(d0.getDate()+etapasE2.length-1+pulaDias+1);
+  const p4Label = estado.p4TipoSelecionado==="implante" ? "Colocar implante de P4" : (estado.p4TipoSelecionado==="injetavel" ? "Aplicar P4 injetável" : "Aplicar P4");
+  document.getElementById("sinc-horm-previsao").textContent = p4Label+" em "+dataISOparaBR(isoDeData(d0))+" (D0)";
+}
+function resetSincHormonalUI(){
+  document.getElementById("chk-sinc-hormonal").checked = false;
+  document.getElementById("bloco-sinc-hormonal").style.display = "none";
+  document.getElementById("sinc-horm-data-inicio").value = "";
+  document.getElementById("sinc-horm-pula-dias").value = "1";
+  etapasE2 = [];
+  renderEtapasE2();
+  estado.p4TipoSelecionado = null;
+  setP4TipoVisualReset();
+  document.getElementById("sinc-horm-previsao").textContent = "-";
+}
 function abrirAssinatura(){
   if(!usuarioAtualId){ alert("Faça login primeiro."); return; }
   const url = STRIPE_PAYMENT_LINK + "?client_reference_id=" + encodeURIComponent(usuarioAtualId) + "&prefilled_email=" + encodeURIComponent(veterinario.email||"");
