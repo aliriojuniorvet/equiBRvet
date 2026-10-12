@@ -1431,6 +1431,14 @@ function parseDataBR2(str){
   const p = str.split("/");
   return new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
 }
+function dataParaOrdenacao(str){
+  if(!str) return -Infinity;
+  const d = parseDataBR2(str);
+  return isNaN(d.getTime()) ? -Infinity : d.getTime();
+}
+function ordenarIndicesPorDataDesc(lista, campoFn){
+  return lista.map((item,i)=>({item:item, i:i})).sort((a,b)=> dataParaOrdenacao(campoFn(b.item)) - dataParaOrdenacao(campoFn(a.item)));
+}
 function buscarIntervalo(nome){
   const achado = protocoloSaude.vacinas.concat(protocoloSaude.vermifugos).find(v=>v.nome===nome);
   return achado ? achado.intervaloDias : null;
@@ -1862,7 +1870,7 @@ async function registrarResultadosReproducao(){
       if(coberturaVinculada.id) await offlineUpdate("coberturas", coberturaVinculada.id, { status:novoStatus });
     } else if(catAnimal==="receptora"){
       transferenciaVinculada = transferenciaPendente(estado.animal.id) ||
-        transferencias.filter(t=>t.receptoraId===estado.animal.id).slice(-1)[0] || null;
+        transferencias.filter(t=>t.receptoraId===estado.animal.id).sort((a,b)=> dataParaOrdenacao(b.dataLavado) - dataParaOrdenacao(a.dataLavado))[0] || null;
       if(!transferenciaVinculada){
         // Nenhuma transferência prévia registrada: cria uma diretamente já resolvida,
         // para que o resultado sempre fique visível e editável na aba TE.
@@ -2485,16 +2493,18 @@ function renderFinanceiro(id){
     {label:"Em aberto", value:totalAberto, displayValue:"R$ "+totalAberto.toFixed(0), color:"var(--bg-danger-strong,#c62828)"}
   ]);
   document.getElementById("msg-sem-financeiro").style.display = fList.length ? "none":"block";
-  document.getElementById("lista-financeiro").innerHTML = fList.map((f,i)=>
-    '<div onclick="editarLancamento(\''+id+'\','+i+')" style="cursor:pointer;background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
+  const fListOrdenada = ordenarIndicesPorDataDesc(fList, f=>f.data);
+  document.getElementById("lista-financeiro").innerHTML = fListOrdenada.map(function(par){
+    const f = par.item, i = par.i;
+    return '<div onclick="editarLancamento(\''+id+'\','+i+')" style="cursor:pointer;background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">'+
     '<p style="font-size:13px;font-weight:500;margin:0">'+f.descricao+'</p>'+
     '<div style="display:flex;align-items:center;gap:6px">'+
     '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:'+(f.status==="pago"?"var(--bg-success)":"var(--bg-accent)")+';color:'+(f.status==="pago"?"var(--text-success)":"var(--text-accent)")+'">'+(f.status==="pago"?"Pago":"Pendente")+'</span>'+
     '<span onclick="excluirLancamento(\''+id+'\','+i+',event)" style="font-size:14px;color:var(--text-danger);cursor:pointer">🗑️</span>'+
     '</div></div>'+
-    '<p style="font-size:11px;color:var(--text-muted);margin:0">'+f.data+' - R$ '+f.valor.toFixed(0)+(f.animalNome?(' · 🐴 '+f.animalNome):'')+'</p></div>'
-  ).join("");
+    '<p style="font-size:11px;color:var(--text-muted);margin:0">'+f.data+' - R$ '+f.valor.toFixed(0)+(f.animalNome?(' · 🐴 '+f.animalNome):'')+'</p></div>';
+  }).join("");
 }
 async function excluirLancamento(id, idx, ev){
   ev.stopPropagation();
@@ -2511,14 +2521,16 @@ function renderDeslocamento(id){
   document.getElementById("desl-total-valor").textContent = "R$ "+totalValor.toFixed(2);
   document.getElementById("desl-total-km").textContent = totalKm+" km";
   document.getElementById("msg-sem-deslocamento").style.display = dList.length ? "none":"block";
-  document.getElementById("lista-deslocamento").innerHTML = dList.map((d,i)=>
-    '<div onclick="editarDeslocamento(\''+id+'\','+i+')" style="cursor:pointer;background:var(--surface-1);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">'+
+  const dListOrdenada = ordenarIndicesPorDataDesc(dList, d=>d.data);
+  document.getElementById("lista-deslocamento").innerHTML = dListOrdenada.map(function(par){
+    const d = par.item, i = par.i;
+    return '<div onclick="editarDeslocamento(\''+id+'\','+i+')" style="cursor:pointer;background:var(--surface-1);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">'+
     '<div><div style="display:flex;align-items:center;gap:6px"><p style="font-size:13px;font-weight:500;margin:0">R$ '+d.valor.toFixed(2)+'</p>'+
     '<span style="font-size:10px;padding:1px 7px;border-radius:10px;background:'+(d.faturado?"var(--bg-success)":"var(--bg-accent)")+';color:'+(d.faturado?"var(--text-success)":"var(--text-accent)")+'">'+(d.faturado?"Faturado":"Em aberto")+'</span></div>'+
     '<p style="font-size:11px;color:var(--text-muted);margin:0">'+d.data+' - '+(d.modo==="fixo" ? "Valor fixo" : ("R$ "+(d.valorKm||0).toFixed(2)+"/km"))+'</p></div>'+
     '<div style="display:flex;align-items:center;gap:8px"><p style="font-size:12px;color:var(--text-secondary);margin:0">'+(d.km?(d.km+" km"):"-")+'</p>'+
-    '<span onclick="excluirDeslocamento(\''+id+'\','+i+',event)" style="font-size:14px;color:var(--text-danger);cursor:pointer">🗑️</span></div></div>'
-  ).join("");
+    '<span onclick="excluirDeslocamento(\''+id+'\','+i+',event)" style="font-size:14px;color:var(--text-danger);cursor:pointer">🗑️</span></div></div>';
+  }).join("");
 }
 async function excluirDeslocamento(id, idx, ev){
   ev.stopPropagation();
@@ -2770,12 +2782,13 @@ function renderListaGestacoesFiltrada(){
     gList = gList.filter(g=>g.categoria===cat);
   }
   document.getElementById("msg-sem-gestacoes").style.display = gList.length ? "none":"block";
-  document.getElementById("lista-gestacoes").innerHTML = gList.map(g=>{
+  const gListOrdenada = gList.slice().sort((a,b)=> dataParaOrdenacao(b.dataDiagnostico||b.dataInseminacao) - dataParaOrdenacao(a.dataDiagnostico||a.dataInseminacao));
+  document.getElementById("lista-gestacoes").innerHTML = gListOrdenada.map(g=>{
     const idx = gAll.indexOf(g);
     const perdida = g.status==="perdida";
     let embriaoLinha = "";
     if(g.animalId){
-      const t = transferencias.filter(x=>x.receptoraId===g.animalId).sort((a,b)=>0).slice(-1)[0];
+      const t = transferencias.filter(x=>x.receptoraId===g.animalId).sort((a,b)=> dataParaOrdenacao(b.dataLavado) - dataParaOrdenacao(a.dataLavado))[0];
       if(t){
         const doadoraAtual = t.doadoraId ? animais.find(x=>x.id===t.doadoraId) : null;
         const nomeDoadora = doadoraAtual ? doadoraAtual.nome : (t.doadoraNome+" ⚠️");
@@ -2816,7 +2829,8 @@ function renderListaCoberturasFiltrada(){
   const corStatus = {positiva:"var(--bg-success)", negativa:"var(--bg-danger)", pendente:"var(--bg-accent)"};
   const textoCorStatus = {positiva:"var(--text-success)", negativa:"var(--text-danger)", pendente:"var(--text-accent)"};
   const labelStatus = {positiva:"Positiva", negativa:"Negativa", pendente:"Pendente"};
-  document.getElementById("lista-coberturas").innerHTML = cList.map(c=>{
+  const cListOrdenada = cList.slice().sort((a,b)=> dataParaOrdenacao(b.data) - dataParaOrdenacao(a.data));
+  document.getElementById("lista-coberturas").innerHTML = cListOrdenada.map(c=>{
     const tipoLabel = c.tipo==="ia" ? ("IA - "+(nomeTipoSemen[c.tipoSemen]||"")) : "Monta Natural";
     return '<div onclick="abrirEdicaoCobertura(\''+c.id+'\')" style="cursor:pointer;background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">'+
@@ -3056,14 +3070,16 @@ function atualizarChipsEstilo(){
 function renderHistorico(animalId){
   const hList = historico[animalId] || [];
   document.getElementById("msg-sem-historico").style.display = hList.length ? "none":"block";
-  document.getElementById("lista-historico").innerHTML = hList.map((h,i)=>
-    '<div style="background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
+  const hOrdenado = ordenarIndicesPorDataDesc(hList, h=>h.data);
+  document.getElementById("lista-historico").innerHTML = hOrdenado.map(function(par){
+    const h = par.item, i = par.i;
+    return '<div style="background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">'+
     '<span style="font-size:10px;background:var(--bg-accent);color:var(--text-accent);padding:2px 8px;border-radius:10px">'+h.tipo+'</span>'+
     '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:var(--text-muted)">'+h.data+'</span>'+
     '<span onclick="excluirHistorico(\''+animalId+'\','+i+',event)" style="cursor:pointer;color:var(--text-danger);font-size:14px">🗑️</span></div></div>'+
-    '<p onclick="abrirHistoricoDetalhe(\''+animalId+'\','+i+')" style="cursor:pointer;font-size:12px;color:var(--text-secondary);margin:0">'+h.resumo+'</p></div>'
-  ).join("");
+    '<p onclick="abrirHistoricoDetalhe(\''+animalId+'\','+i+')" style="cursor:pointer;font-size:12px;color:var(--text-secondary);margin:0">'+h.resumo+'</p></div>';
+  }).join("");
 }
 async function excluirHistorico(animalId, idx, ev){
   ev.stopPropagation();
@@ -3304,14 +3320,16 @@ function renderManejoSanitario(animalId){
 
   const lista = manejoSanitario[animalId] || [];
   document.getElementById("msan-vazio").style.display = lista.length ? "none":"block";
-  document.getElementById("msan-lista").innerHTML = lista.map((r,i)=>
-    '<div style="background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
+  const listaOrdenada = ordenarIndicesPorDataDesc(lista, r=>r.data);
+  document.getElementById("msan-lista").innerHTML = listaOrdenada.map(function(par){
+    const r = par.item, i = par.i;
+    return '<div style="background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">'+
     '<span style="font-size:10px;background:var(--bg-accent);color:var(--text-accent);padding:2px 8px;border-radius:10px">'+r.tipo+'</span>'+
     '<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--text-muted)">'+r.data+'</span>'+
     '<span onclick="excluirSanitario(\''+animalId+'\','+i+',event)" style="cursor:pointer;color:var(--text-danger);font-size:14px">🗑️</span></div></div>'+
-    '<p style="font-size:12px;color:var(--text-secondary);margin:0">'+r.nome+(r.obs?(' - '+r.obs):'')+'</p></div>'
-  ).join("");
+    '<p style="font-size:12px;color:var(--text-secondary);margin:0">'+r.nome+(r.obs?(' - '+r.obs):'')+'</p></div>';
+  }).join("");
 }
 async function excluirSanitario(animalId, idx, ev){
   ev.stopPropagation();
@@ -3361,16 +3379,18 @@ const LABEL_LEMBRETE = {diario:"🔔 Lembrete diário", semanal:"🔔 Lembrete s
 function renderMedicacoes(animalId){
   const lista = medicacoes[animalId] || [];
   document.getElementById("med-vazio").style.display = lista.length ? "none":"block";
-  document.getElementById("med-lista").innerHTML = lista.map((r,i)=>
-    '<div style="background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
+  const listaOrdenada = ordenarIndicesPorDataDesc(lista, r=>r.data);
+  document.getElementById("med-lista").innerHTML = listaOrdenada.map(function(par){
+    const r = par.item, i = par.i;
+    return '<div style="background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">'+
     '<span style="font-size:13px;font-weight:500">'+r.nome+(r.dose?(' - '+r.dose):'')+'</span>'+
     '<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--text-muted)">'+r.data+'</span>'+
     '<span onclick="excluirMedicacao(\''+animalId+'\','+i+',event)" style="cursor:pointer;color:var(--text-danger);font-size:14px">🗑️</span></div></div>'+
     (r.lembrete ? '<p style="font-size:11px;color:var(--text-accent);margin:2px 0 0">'+(LABEL_LEMBRETE[r.lembrete]||'')+(r.duracaoDias?(" - até "+r.duracaoDias+" dia"+(r.duracaoDias===1?"":"s")):"")+'</p>' : '')+
     (r.obs ? '<p style="font-size:12px;color:var(--text-secondary);margin:4px 0 0">'+r.obs+'</p>' : '')+
-    '</div>'
-  ).join("");
+    '</div>';
+  }).join("");
 }
 async function excluirMedicacao(animalId, idx, ev){
   ev.stopPropagation();
@@ -3446,7 +3466,7 @@ function abrirPerfil(id){
   }
   const embriaoEl = document.getElementById("perfil-embriao-info");
   if(a.categoria==="receptora"){
-    const trans = transferencias.filter(t=>t.receptoraId===a.id).sort((x,y)=>0).slice(-1)[0];
+    const trans = transferencias.filter(t=>t.receptoraId===a.id).sort((x,y)=> dataParaOrdenacao(y.dataLavado) - dataParaOrdenacao(x.dataLavado))[0];
     const tPendente = transferenciaPendente(a.id);
     const tAtiva = tPendente || (trans && trans.status==="positiva" ? trans : null);
     if(tAtiva){
@@ -3882,7 +3902,7 @@ async function salvarPerdaGestacional(){
   await offlineUpdate("animais", a.id, { gestante:false });
   const propId = a.propriedade;
   const gList = gestacoes[propId] || [];
-  const ativa = gList.filter(g=>g.animalId===a.id && g.status==="ativa").sort((x,y)=>0).slice(-1)[0];
+  const ativa = gList.filter(g=>g.animalId===a.id && g.status==="ativa").sort((x,y)=> dataParaOrdenacao(y.dataDiagnostico||y.dataInseminacao) - dataParaOrdenacao(x.dataDiagnostico||x.dataInseminacao))[0];
   if(ativa){
     ativa.status = "perdida"; ativa.tipoPerda = estado.tipoPerdaSelecionado; ativa.dataPerda = data;
     if(ativa.id){
@@ -3896,7 +3916,7 @@ async function salvarPerdaGestacional(){
     }
   }
   if(a.categoria==="receptora"){
-    const t = transferencias.filter(x=>x.receptoraId===a.id && (x.status==="pendente"||x.status==="positiva")).sort((x,y)=>0).slice(-1)[0];
+    const t = transferencias.filter(x=>x.receptoraId===a.id && (x.status==="pendente"||x.status==="positiva")).sort((x,y)=> dataParaOrdenacao(y.dataLavado) - dataParaOrdenacao(x.dataLavado))[0];
     if(t){
       t.status = "negativa";
       if(t.id) await offlineUpdate("transferencias", t.id, { status:"negativa" });
@@ -4447,7 +4467,7 @@ function renderProdutos(){
   }).join("");
 }
 function renderCompras(){
-  document.getElementById("lista-compras").innerHTML = compras.slice().reverse().map(c=>{
+  document.getElementById("lista-compras").innerHTML = compras.slice().sort((a,b)=> dataParaOrdenacao(b.data) - dataParaOrdenacao(a.data)).map(c=>{
     const prod = produtos.find(p=>p.id===c.produtoId);
     return '<div onclick="abrirCompraDetalhe(\''+c.id+'\')" style="cursor:pointer;background:var(--surface-1);border-radius:10px;padding:12px">'+
     '<p style="font-size:13px;font-weight:500;margin:0 0 2px">'+(prod?prod.nome:"-")+'</p>'+
