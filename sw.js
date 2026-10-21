@@ -1,4 +1,4 @@
-const CACHE_NAME = "equibr-shell-v5";
+const CACHE_NAME = "equibr-shell-v6";
 const APP_SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -13,6 +13,10 @@ self.addEventListener("activate", (event) => {
       Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") { self.skipWaiting(); }
 });
 
 // Imagens (fotos dos animais, ícones): cache primeiro - mais rápido, e continuam

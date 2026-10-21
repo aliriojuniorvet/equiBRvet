@@ -1080,7 +1080,7 @@ let usuarioAtualId = null;
 
 function abrirIndexedDB(){
   return new Promise((resolve, reject)=>{
-    const req = indexedDB.open("equibr_offline", 3);
+    const req = indexedDB.open("equibr_offline", 4);
     req.onupgradeneeded = (e)=>{
       const db = e.target.result;
       TABELAS_OFFLINE.forEach(t=>{
@@ -5289,8 +5289,28 @@ async function restaurarSessaoOffline(){
 })();
 
 if("serviceWorker" in navigator){
+  let swAtualizouERecarregou = false;
+  navigator.serviceWorker.addEventListener("controllerchange", ()=>{
+    // Uma versão nova do app assumiu o controle: recarrega uma vez pra garantir
+    // que a página em uso já é a versão nova (com as correções mais recentes),
+    // em vez de ficar rodando o código antigo até o usuário fechar e abrir de novo.
+    if(swAtualizouERecarregou) return;
+    swAtualizouERecarregou = true;
+    window.location.reload();
+  });
   window.addEventListener("load", ()=>{
-    navigator.serviceWorker.register("sw.js").catch(e=>console.warn("Service worker não registrado:", e));
+    navigator.serviceWorker.register("sw.js").then(reg=>{
+      if(reg.waiting){ reg.waiting.postMessage({type:"SKIP_WAITING"}); }
+      reg.addEventListener("updatefound", ()=>{
+        const novoWorker = reg.installing;
+        if(!novoWorker) return;
+        novoWorker.addEventListener("statechange", ()=>{
+          if(novoWorker.state==="installed" && navigator.serviceWorker.controller){
+            novoWorker.postMessage({type:"SKIP_WAITING"});
+          }
+        });
+      });
+    }).catch(e=>console.warn("Service worker não registrado:", e));
   });
 }
 </script>
