@@ -370,6 +370,7 @@
       <p id="perfil-ovulacao-dtexto" style="font-size:24px;font-weight:700;color:var(--on-accent);margin:2px 0 0">D0</p>
       <p id="perfil-ovulacao-detalhe" style="font-size:11px;color:var(--on-accent);opacity:0.85;margin:2px 0 0"></p>
     </div>
+    <p id="perfil-gestacao-info" style="display:none;font-size:12px;color:var(--text-success);background:var(--bg-success);border-radius:6px;padding:6px 8px;margin:8px 0 0">-</p>
     <p id="perfil-embriao-info" style="display:none;font-size:12px;color:var(--text-accent);background:var(--bg-accent);border-radius:6px;padding:6px 8px;margin:8px 0 0">-</p>
     <p id="perfil-sincronizada-info" style="display:none;font-size:12px;color:var(--text-secondary);background:var(--surface-2);border-radius:6px;padding:6px 8px;margin:8px 0 0">-</p>
   </div>
@@ -1460,7 +1461,7 @@ function calcularLembretesVacinais(){
       proxima.setDate(proxima.getDate()+intervalo);
       const diffDias = Math.round((proxima-hoje)/(1000*60*60*24));
       if(diffDias<=14){
-        lembretes.push({animal:a.nome, nome:r.nome, dias:diffDias, atrasada:diffDias<0, tipo:"sanitario"});
+        lembretes.push({animal:a.nome, propriedade:a.propriedade, nome:r.nome, dias:diffDias, atrasada:diffDias<0, tipo:"sanitario"});
       }
     });
   });
@@ -1484,7 +1485,7 @@ function calcularLembretesMedicacoes(){
       if(!r.lembrete){
         const diffDias = Math.round((dataBase-hoje)/umDiaMs);
         if(diffDias<=1){
-          lembretes.push({animal:a.nome, nome:nomeExibicao, dias:diffDias, atrasada:diffDias<0, tipo:"medicacao"});
+          lembretes.push({animal:a.nome, propriedade:a.propriedade, nome:nomeExibicao, dias:diffDias, atrasada:diffDias<0, tipo:"medicacao"});
         }
       } else {
         const intervalo = intervalos[r.lembrete];
@@ -1497,7 +1498,7 @@ function calcularLembretesMedicacoes(){
         if(limiteDuracao && proxima > limiteDuracao) return;
         const diffDias = Math.round((proxima-hoje)/umDiaMs);
         if(diffDias<=1){
-          lembretes.push({animal:a.nome, nome:nomeExibicao, dias:diffDias, atrasada:diffDias<0, tipo:"medicacao"});
+          lembretes.push({animal:a.nome, propriedade:a.propriedade, nome:nomeExibicao, dias:diffDias, atrasada:diffDias<0, tipo:"medicacao"});
         }
       }
     });
@@ -1515,7 +1516,7 @@ function calcularLembretesSincHormonal(){
       const dataEtapa = new Date(inicio); dataEtapa.setDate(dataEtapa.getDate()+i);
       const diffDias = Math.round((dataEtapa-hoje)/umDiaMs);
       if(diffDias<=14){
-        lembretes.push({animal:p.animalNome, nome:"E2 "+dose+" (dia "+(i+1)+")", dias:diffDias, atrasada:diffDias<0, tipo:"sincronizacao"});
+        lembretes.push({animal:p.animalNome, propriedade:p.propriedade, nome:"E2 "+dose+" (dia "+(i+1)+")", dias:diffDias, atrasada:diffDias<0, tipo:"sincronizacao"});
       }
     });
     const dataP4 = parseDataBR2(p.d0);
@@ -1523,7 +1524,7 @@ function calcularLembretesSincHormonal(){
       const diffDiasP4 = Math.round((dataP4-hoje)/umDiaMs);
       if(diffDiasP4<=14){
         const label = p.p4Tipo==="implante" ? "Colocar implante de P4 (D0)" : "Aplicar P4 injetável (D0)";
-        lembretes.push({animal:p.animalNome, nome:label, dias:diffDiasP4, atrasada:diffDiasP4<0, tipo:"sincronizacao"});
+        lembretes.push({animal:p.animalNome, propriedade:p.propriedade, nome:label, dias:diffDiasP4, atrasada:diffDiasP4<0, tipo:"sincronizacao"});
       }
     }
   });
@@ -1535,21 +1536,24 @@ function renderLembretes(){
   const bloco = document.getElementById("bloco-lembretes");
   if(!lembretes.length){ bloco.style.display="none"; return; }
   bloco.style.display="block";
-  document.getElementById("lista-lembretes").innerHTML = lembretes.map(l=>
-    '<div style="background:'+(l.atrasada?"var(--bg-danger)":"var(--bg-accent)")+';border-radius:10px;padding:10px 12px">'+
+  document.getElementById("lista-lembretes").innerHTML = lembretes.map(l=>{
+    const propL = l.propriedade ? propriedades.find(p=>p.id===l.propriedade) : null;
+    const animalPropTxt = l.animal + (propL ? " · "+propL.nome : "");
+    return '<div style="background:'+(l.atrasada?"var(--bg-danger)":"var(--bg-accent)")+';border-radius:10px;padding:10px 12px">'+
     '<p style="font-size:11px;font-weight:500;margin:0 0 2px;color:'+(l.atrasada?"var(--text-danger)":"var(--text-accent)")+'">'+(ROTULO_TIPO_LEMBRETE[l.tipo]||"🔔 Lembrete")+(l.atrasada?" · atrasada":"")+'</p>'+
     '<p style="font-size:13px;font-weight:500;margin:0 0 2px;color:var(--text-primary)">'+l.nome+'</p>'+
-    '<p style="font-size:12px;color:var(--text-secondary);margin:0">'+l.animal+' - '+(l.atrasada?("há "+Math.abs(l.dias)+" dias"):(l.dias===0?"hoje":("em "+l.dias+" dias")))+'</p></div>'
-  ).join("");
+    '<p style="font-size:12px;color:var(--text-secondary);margin:0">'+animalPropTxt+' - '+(l.atrasada?("há "+Math.abs(l.dias)+" dias"):(l.dias===0?"hoje":("em "+l.dias+" dias")))+'</p></div>';
+  }).join("");
 }
 function renderEventos(){
-  const retornosHtml = retornos.map((r,i)=>
-    '<div style="display:flex;align-items:center;gap:10px;background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
+  const retornosHtml = retornos.map((r,i)=>{
+    const propRet = r.propriedade ? propriedades.find(p=>p.id===r.propriedade) : null;
+    return '<div style="display:flex;align-items:center;gap:10px;background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
     '<div onclick="abrirRetorno(\''+r.animalId+'\')" style="cursor:pointer;width:34px;height:34px;border-radius:8px;background:var(--bg-accent);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📅</div>'+
-    '<div onclick="abrirRetorno(\''+r.animalId+'\')" style="cursor:pointer;flex:1"><p style="font-size:13px;margin:0">Retorno agendado - '+r.animalNome+'</p><p style="font-size:12px;color:var(--text-muted);margin:0">Ficha do animal</p></div>'+
+    '<div onclick="abrirRetorno(\''+r.animalId+'\')" style="cursor:pointer;flex:1"><p style="font-size:13px;margin:0">Retorno agendado - '+r.animalNome+'</p><p style="font-size:12px;color:var(--text-muted);margin:0">'+(propRet?propRet.nome:"Ficha do animal")+'</p></div>'+
     '<span style="font-size:11px;color:var(--text-muted)">'+r.data+'</span>'+
-    '<span onclick="excluirNotificacaoRetorno('+i+',event)" style="font-size:14px;color:var(--text-danger);cursor:pointer;flex-shrink:0">🗑️</span></div>'
-  ).join("");
+    '<span onclick="excluirNotificacaoRetorno('+i+',event)" style="font-size:14px;color:var(--text-danger);cursor:pointer;flex-shrink:0">🗑️</span></div>';
+  }).join("");
   const eventosHtml = eventos.map(ev=>
     '<div onclick="abrirEvento(\''+ev.animalId+'\',\''+ev.tipo+'\')" style="cursor:pointer;display:flex;align-items:center;gap:10px;background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
     '<div style="width:34px;height:34px;border-radius:8px;background:var(--bg-accent);display:flex;align-items:center;justify-content:center;font-size:16px">'+ev.icone+'</div>'+
@@ -1586,16 +1590,18 @@ function renderOvulacoes(){
     const d = diaD(o.data);
     const aTop = animais.find(x=>x.id===o.animalId);
     const catTop = aTop ? (categorias[aTop.categoria]||aTop.categoria) : "";
+    const propTop = aTop ? propriedades.find(p=>p.id===aTop.propriedade) : null;
     const espelhos = ovulacoes.filter(x=>x.espelhoDe===o.id && x.status==="ativa" && !x.dgRealizado);
     const linhaReceptoras = espelhos.map(e=>{
       const dEsp = diaD(e.data);
       const aEsp = animais.find(x=>x.id===e.animalId);
       const catEsp = aEsp ? (categorias[aEsp.categoria]||aEsp.categoria) : "Receptora";
-      return '<p onclick="abrirPerfil(\''+e.animalId+'\')" style="cursor:pointer;font-size:12px;color:var(--text-accent);margin:4px 0 0">🔗 '+catEsp+': '+e.animalNome+' - <strong>D'+dEsp+'</strong></p>';
+      const propEsp = aEsp ? propriedades.find(p=>p.id===aEsp.propriedade) : null;
+      return '<p onclick="abrirPerfil(\''+e.animalId+'\')" style="cursor:pointer;font-size:12px;color:var(--text-accent);margin:4px 0 0">🔗 '+catEsp+': '+e.animalNome+(propEsp?' · '+propEsp.nome:'')+' - <strong>D'+dEsp+'</strong></p>';
     }).join("");
     return '<div style="background:var(--surface-1);border-left:4px solid var(--fill-accent);border-radius:10px;padding:10px 12px">'+
       '<div onclick="abrirPerfil(\''+o.animalId+'\')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">'+
-      '<p style="font-size:13px;font-weight:500;margin:0">'+catTop+': '+o.animalNome+'</p>'+
+      '<p style="font-size:13px;font-weight:500;margin:0">'+catTop+': '+o.animalNome+(propTop?' · '+propTop.nome:'')+'</p>'+
       '<span style="font-size:16px;font-weight:700;color:var(--text-accent)">D'+d+'</span>'+
       '</div>'+
       linhaReceptoras+
@@ -1611,7 +1617,7 @@ function renderInducoes(){
     '<div style="background:var(--bg-danger);border-radius:10px;padding:10px 12px">'+
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'+
     '<div onclick="abrirRetorno(\''+ind.animalId+'\')" style="cursor:pointer;flex:1">'+
-    '<p style="font-size:13px;font-weight:500;margin:0 0 2px;color:var(--text-danger)">'+ind.animalNome+' - '+ind.medicamento+' ('+(nomeTipoSemen[ind.tipoSemen]||ind.tipoSemen)+')</p>'+
+    '<p style="font-size:13px;font-weight:500;margin:0 0 2px;color:var(--text-danger)">'+ind.animalNome+(propriedades.find(p=>p.id===ind.propriedade)?(' · '+propriedades.find(p=>p.id===ind.propriedade).nome):'')+' - '+ind.medicamento+' ('+(nomeTipoSemen[ind.tipoSemen]||ind.tipoSemen)+')</p>'+
     '<p style="font-size:12px;color:var(--text-secondary);margin:0">Indução: '+ind.dataInducao+' '+(ind.horaInducao||'')+'</p>'+
     '<p style="font-size:12px;color:var(--text-danger);margin:0;font-weight:500">'+ind.previsao+'</p></div>'+
     '<span onclick="excluirNotificacaoInducao('+i+',event)" style="font-size:14px;color:var(--text-danger);cursor:pointer;flex-shrink:0">🗑️</span>'+
@@ -2809,6 +2815,7 @@ function renderListaGestacoesFiltrada(){
     '</div></div>'+
     '<p style="font-size:11px;color:var(--text-secondary);margin:0 0 2px">'+g.cruzamento+'</p>'+
     '<p style="font-size:11px;color:var(--text-muted);margin:0">Cobertura: '+g.dataInseminacao+' - Diagnóstico: '+g.dataDiagnostico+(perdida?(' - '+g.tipoPerda+' em '+g.dataPerda):'')+'</p>'+
+    (!perdida && dataBaseD ? '<p style="font-size:11px;color:var(--text-success);margin:2px 0 0">📅 Previsão de parto: '+previsaoPartoBR(dataBaseD,340)+'</p>' : '')+
     embriaoLinha+
     '</div>';
   }).join("");
@@ -3451,13 +3458,23 @@ function abrirPerfil(id){
   document.getElementById("perfil-detalhes").textContent = det;
   document.getElementById("perfil-card").style.background = a.gestante ? "var(--bg-success)" : "var(--surface-1)";
   document.getElementById("perfil-badge-gestante").style.display = a.gestante ? "inline-block":"none";
+  const gestacaoInfoEl = document.getElementById("perfil-gestacao-info");
   if(a.gestante){
     const gAtivaPerfil = (gestacoes[a.propriedade]||[]).filter(g=>g.animalId===a.id && g.status==="ativa").sort((x,y)=> dataParaOrdenacao(y.dataDiagnostico||y.dataInseminacao) - dataParaOrdenacao(x.dataDiagnostico||x.dataInseminacao))[0];
     const baseDPerfil = gAtivaPerfil ? dataBaseGestacao(gAtivaPerfil) : null;
     const dDiasPerfil = baseDPerfil ? diaD(baseDPerfil) : null;
-    document.getElementById("perfil-badge-gestante").textContent = (dDiasPerfil!==null && dDiasPerfil!==undefined && dDiasPerfil>=0) ? "Gestante · D+"+dDiasPerfil : "Gestante";
+    const temD = dDiasPerfil!==null && dDiasPerfil!==undefined && dDiasPerfil>=0;
+    document.getElementById("perfil-badge-gestante").textContent = temD ? "Gestante · D+"+dDiasPerfil : "Gestante";
+    if(temD){
+      const previsaoPerfil = previsaoPartoBR(baseDPerfil, 340);
+      gestacaoInfoEl.textContent = "🤰 "+dDiasPerfil+" dias de gestação"+(previsaoPerfil ? " · Previsão de parto: "+previsaoPerfil : "");
+      gestacaoInfoEl.style.display = "block";
+    } else {
+      gestacaoInfoEl.style.display = "none";
+    }
   } else {
     document.getElementById("perfil-badge-gestante").textContent = "Gestante";
+    gestacaoInfoEl.style.display = "none";
   }
   const ovulEl = document.getElementById("perfil-ovulacao-info");
   const ativaOv = ovulacaoAtiva(a.id);
@@ -3645,6 +3662,17 @@ function dataBaseGestacao(g){
     }
   }
   return g.dataInseminacao;
+}
+function previsaoPartoBR(dataBaseBR, diasGestacao){
+  if(!dataBaseBR) return null;
+  const partes = dataBaseBR.split("/");
+  if(partes.length!==3) return null;
+  const dataOv = new Date(parseInt(partes[2],10), parseInt(partes[1],10)-1, parseInt(partes[0],10));
+  dataOv.setDate(dataOv.getDate() + (diasGestacao||340));
+  const dd = String(dataOv.getDate()).padStart(2,"0");
+  const mm = String(dataOv.getMonth()+1).padStart(2,"0");
+  const yyyy = dataOv.getFullYear();
+  return dd+"/"+mm+"/"+yyyy;
 }
 function toggleMarcarOvulacao(cb){
   document.getElementById("bloco-marcar-ovulacao").style.display = cb.checked ? "block":"none";
