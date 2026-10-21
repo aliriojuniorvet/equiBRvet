@@ -2795,11 +2795,15 @@ function renderListaGestacoesFiltrada(){
         embriaoLinha = '<p style="font-size:11px;color:var(--text-accent);margin:2px 0 0">🧬 Embrião de '+nomeDoadora+' × '+t.garanhao+'</p>';
       }
     }
+    const dataBaseD = perdida ? null : dataBaseGestacao(g);
+    const dDias = dataBaseD ? diaD(dataBaseD) : null;
+    const badgeD = (dDias!==null && dDias!==undefined && dDias>=0) ? '<span style="font-size:10px;background:var(--bg-accent);color:var(--text-accent);padding:2px 8px;border-radius:10px;font-weight:600">D+'+dDias+'</span>' : '';
     return '<div onclick="editarGestacao('+idx+')" style="cursor:pointer;background:'+(perdida?"var(--bg-danger)":"var(--surface-1)")+';border-radius:10px;padding:10px 12px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'+
     '<p style="font-size:13px;font-weight:500;margin:0">'+g.animal+'</p>'+
     '<div style="display:flex;gap:4px;align-items:center">'+
     (perdida ? '<span style="font-size:10px;background:var(--bg-danger-strong,#c62828);color:#fff;padding:2px 8px;border-radius:10px">'+g.tipoPerda+'</span>' : '<span style="font-size:10px;background:var(--bg-success);color:var(--text-success);padding:2px 8px;border-radius:10px">Ativa</span>')+
+    badgeD+
     '<span style="font-size:10px;background:var(--bg-accent);color:var(--text-accent);padding:2px 8px;border-radius:10px">'+g.categoria+'</span>'+
     '<span style="font-size:13px;color:var(--text-muted)">✏️</span>'+
     '</div></div>'+
@@ -3447,6 +3451,14 @@ function abrirPerfil(id){
   document.getElementById("perfil-detalhes").textContent = det;
   document.getElementById("perfil-card").style.background = a.gestante ? "var(--bg-success)" : "var(--surface-1)";
   document.getElementById("perfil-badge-gestante").style.display = a.gestante ? "inline-block":"none";
+  if(a.gestante){
+    const gAtivaPerfil = (gestacoes[a.propriedade]||[]).filter(g=>g.animalId===a.id && g.status==="ativa").sort((x,y)=> dataParaOrdenacao(y.dataDiagnostico||y.dataInseminacao) - dataParaOrdenacao(x.dataDiagnostico||x.dataInseminacao))[0];
+    const baseDPerfil = gAtivaPerfil ? dataBaseGestacao(gAtivaPerfil) : null;
+    const dDiasPerfil = baseDPerfil ? diaD(baseDPerfil) : null;
+    document.getElementById("perfil-badge-gestante").textContent = (dDiasPerfil!==null && dDiasPerfil!==undefined && dDiasPerfil>=0) ? "Gestante · D+"+dDiasPerfil : "Gestante";
+  } else {
+    document.getElementById("perfil-badge-gestante").textContent = "Gestante";
+  }
   const ovulEl = document.getElementById("perfil-ovulacao-info");
   const ativaOv = ovulacaoAtiva(a.id);
   if(ativaOv){
@@ -3620,6 +3632,19 @@ function diaD(dataOvulacaoBR){
   const dataOv = new Date(parseInt(partes[2],10), parseInt(partes[1],10)-1, parseInt(partes[0],10));
   const hoje = new Date(); hoje.setHours(0,0,0,0); dataOv.setHours(0,0,0,0);
   return Math.round((hoje-dataOv)/(1000*60*60*24));
+}
+function dataBaseGestacao(g){
+  if(g.transferenciaId){
+    const t = transferencias.find(x=>x.id===g.transferenciaId);
+    if(t && t.doadoraId){
+      const candidatas = coberturas.filter(c=>c.animalId===t.doadoraId && dataParaOrdenacao(c.data)<=dataParaOrdenacao(t.dataLavado));
+      if(candidatas.length){
+        candidatas.sort((a,b)=> dataParaOrdenacao(b.data)-dataParaOrdenacao(a.data));
+        return candidatas[0].data;
+      }
+    }
+  }
+  return g.dataInseminacao;
 }
 function toggleMarcarOvulacao(cb){
   document.getElementById("bloco-marcar-ovulacao").style.display = cb.checked ? "block":"none";
