@@ -5190,8 +5190,31 @@ supabaseClient.auth.onAuthStateChange((event, session)=>{
   }
 });
 
+async function restaurarSessaoOffline(){
+  const perfil = await new Promise(res=>{
+    try{
+      const tx = idbDB.transaction("profiles", "readonly");
+      const req = tx.objectStore("profiles").getAll();
+      req.onsuccess = ()=>res(req.result && req.result[0]);
+      req.onerror = ()=>res(null);
+    } catch(e){ res(null); }
+  });
+  if(!perfil) return false;
+  usuarioAtualId = perfil.id;
+  veterinario.nome = perfil.nome||""; veterinario.email = perfil.email||"";
+  veterinario.crmv = perfil.crmv||""; veterinario.endereco = perfil.endereco||"";
+  veterinario.telefone = perfil.telefone||""; veterinario.bairro = perfil.bairro||"";
+  veterinario.cidade = perfil.cidade||""; veterinario.uf = perfil.uf||"";
+  veterinario.plano = perfil.plano||"cortesia"; veterinario.planoValidade = perfil.plano_validade||null;
+  try{ await carregarDadosIniciais(); } catch(e){ console.error("Erro ao carregar dados offline:", e); }
+  estado.pilha = ["dashboard"];
+  setNavAtivo("dashboard");
+  if(!restaurarEstadoNavegacao()){ setView("dashboard"); }
+  return true;
+}
 (async function iniciarApp(){
   await abrirIndexedDB();
+  try{ if(navigator.storage && navigator.storage.persist){ await navigator.storage.persist(); } } catch(e){ /* nem todo navegador suporta, segue normal */ }
   atualizarIndicadorSync();
   const paramsErro = new URLSearchParams(window.location.hash.replace(/^#/, "") || window.location.search.replace(/^\?/, ""));
   const erroOAuth = paramsErro.get("error_description") || paramsErro.get("error");
@@ -5199,6 +5222,18 @@ supabaseClient.auth.onAuthStateChange((event, session)=>{
     alert("Erro ao entrar com Google: "+decodeURIComponent(erroOAuth.replace(/\+/g," ")));
     history.replaceState(null, "", window.location.pathname);
   }
+
+  // Sem conexão: usa direto o que já está salvo neste aparelho, sem depender do SDK
+  // do Supabase (que pode demorar ou se comportar de forma inconsistente tentando
+  // renovar a sessão pela rede quando não há sinal nenhum).
+  if(!navigator.onLine){
+    if(await restaurarSessaoOffline()){
+      tentarSincronizar();
+      return;
+    }
+    // nada salvo neste aparelho ainda: segue o fluxo normal abaixo
+  }
+
   let session = null;
   try{
     const resultado = await supabaseClient.auth.getSession();
@@ -5224,7 +5259,7 @@ supabaseClient.auth.onAuthStateChange((event, session)=>{
         setNavAtivo("dashboard");
         if(!restaurarEstadoNavegacao()){ setView("dashboard"); }
       }
-    } else {
+    } else if(!(await restaurarSessaoOffline())){
       estado.pilha = ["dashboard"];
       setNavAtivo("dashboard");
       setView("dashboard");
@@ -5232,24 +5267,7 @@ supabaseClient.auth.onAuthStateChange((event, session)=>{
     tentarSincronizar();
     return;
   }
-  const sessaoOffline = await new Promise(res=>{
-    try{
-      const tx = idbDB.transaction("profiles", "readonly");
-      const req = tx.objectStore("profiles").getAll();
-      req.onsuccess = ()=>res(req.result && req.result[0]);
-      req.onerror = ()=>res(null);
-    } catch(e){ res(null); }
-  });
-  if(sessaoOffline){
-    usuarioAtualId = sessaoOffline.id;
-    veterinario.nome = sessaoOffline.nome||""; veterinario.email = sessaoOffline.email||"";
-    veterinario.crmv = sessaoOffline.crmv||""; veterinario.endereco = sessaoOffline.endereco||"";
-    veterinario.telefone = sessaoOffline.telefone||""; veterinario.bairro = sessaoOffline.bairro||"";
-    veterinario.cidade = sessaoOffline.cidade||""; veterinario.uf = sessaoOffline.uf||"";
-    try{ await carregarDadosIniciais(); } catch(e){ console.error("Erro ao carregar dados offline:", e); }
-    estado.pilha = ["dashboard"];
-    setNavAtivo("dashboard");
-    if(!restaurarEstadoNavegacao()){ setView("dashboard"); }
+  if(await restaurarSessaoOffline()){
     // se a internet estiver de fato disponível (só a checagem de sessão que falhou por
     // instabilidade), tenta recuperar a sessão online e sincronizar em segundo plano
     tentarSincronizar();
