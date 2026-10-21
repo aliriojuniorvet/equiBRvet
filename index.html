@@ -4779,7 +4779,7 @@ async function carregarPerfilUsuario(userId){
       veterinario.nome = data.nome||""; veterinario.email = data.email||""; veterinario.crmv = data.crmv||""; veterinario.endereco = data.endereco||"";
       veterinario.telefone = data.telefone||""; veterinario.bairro = data.bairro||""; veterinario.cidade = data.cidade||""; veterinario.uf = data.uf||"";
       veterinario.plano = data.plano||"cortesia"; veterinario.planoValidade = data.plano_validade||null;
-      if(idbDB) await idbPut("profiles", data);
+      if(idbDB){ await idbClear("profiles"); await idbPut("profiles", data); }
     }
   } catch(e){
     if(idbDB){
@@ -4801,8 +4801,35 @@ async function carregarPerfilUsuario(userId){
 }
 async function sair(){
   await supabaseClient.auth.signOut();
+  usuarioAtualId = null;
   propriedades.length = 0;
   animais.length = 0;
+  Object.keys(historico).forEach(k=>delete historico[k]);
+  Object.keys(manejoSanitario).forEach(k=>delete manejoSanitario[k]);
+  Object.keys(medicacoes).forEach(k=>delete medicacoes[k]);
+  Object.keys(estatisticas).forEach(k=>delete estatisticas[k]);
+  Object.keys(gestacoes).forEach(k=>delete gestacoes[k]);
+  Object.keys(financeiro).forEach(k=>delete financeiro[k]);
+  Object.keys(deslocamentos).forEach(k=>delete deslocamentos[k]);
+  produtos.length = 0;
+  compras.length = 0;
+  consumos.length = 0;
+  servicos.length = 0;
+  transferencias.length = 0;
+  inducoes.length = 0;
+  protocolosSinc.length = 0;
+  retornos.length = 0;
+  coberturas.length = 0;
+  ovulacoes.length = 0;
+  veterinario = {nome:"", email:"", crmv:"", endereco:"", bairro:"", cidade:"", uf:"", telefone:"", plano:"cortesia", planoValidade:null};
+  // Limpa TUDO que estava guardado offline neste aparelho: sem isso, mesmo depois
+  // de sair, o app encontrava o perfil salvo em cache e voltava a abrir como se
+  // ainda estivesse logado (o que também vazaria os dados de um usuário pro
+  // próximo que usasse o mesmo aparelho).
+  if(idbDB){
+    for(const t of TABELAS_OFFLINE){ await idbClear(t); }
+    await idbClear("sync_queue");
+  }
   try{ localStorage.removeItem("equibr_ultima_tela"); } catch(e){}
   setView("login");
 }
@@ -5191,12 +5218,27 @@ supabaseClient.auth.onAuthStateChange((event, session)=>{
 });
 
 async function restaurarSessaoOffline(){
+  let userIdSalvo = null;
+  try{
+    const authKey = Object.keys(localStorage).find(k=>k.startsWith("sb-") && k.endsWith("-auth-token"));
+    if(authKey){
+      const sessaoSalva = JSON.parse(localStorage.getItem(authKey));
+      userIdSalvo = sessaoSalva && sessaoSalva.user && sessaoSalva.user.id;
+    }
+  } catch(e){}
   const perfil = await new Promise(res=>{
     try{
       const tx = idbDB.transaction("profiles", "readonly");
-      const req = tx.objectStore("profiles").getAll();
-      req.onsuccess = ()=>res(req.result && req.result[0]);
-      req.onerror = ()=>res(null);
+      const store = tx.objectStore("profiles");
+      if(userIdSalvo){
+        const req = store.get(userIdSalvo);
+        req.onsuccess = ()=>res(req.result || null);
+        req.onerror = ()=>res(null);
+      } else {
+        const req = store.getAll();
+        req.onsuccess = ()=>res(req.result && req.result[0]);
+        req.onerror = ()=>res(null);
+      }
     } catch(e){ res(null); }
   });
   if(!perfil) return false;
