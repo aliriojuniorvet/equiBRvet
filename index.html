@@ -92,20 +92,28 @@
     </div>
     <div style="background:var(--surface-1);border-radius:10px;padding:12px">
       <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Eventos hoje</p>
-      <p style="font-size:22px;font-weight:500;margin:0">0</p>
+      <p style="font-size:22px;font-weight:500;margin:0" id="count-eventos-hoje">0</p>
+    </div>
+    <div style="background:var(--bg-success);border-radius:10px;padding:12px">
+      <p style="font-size:12px;color:var(--text-success);margin:0 0 4px">Gestantes</p>
+      <p style="font-size:22px;font-weight:500;margin:0;color:var(--text-success)" id="count-gestantes">0</p>
+    </div>
+    <div style="background:var(--surface-1);border-radius:10px;padding:12px">
+      <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">Lembretes ativos</p>
+      <p style="font-size:22px;font-weight:500;margin:0" id="count-lembretes-ativos">0</p>
     </div>
   </div>
-  <div id="bloco-ovulacoes" style="display:none;margin-bottom:16px">
-    <p style="font-size:13px;font-weight:500;color:var(--text-accent);margin:0 0 8px">Ovulações ativas (contagem D)</p>
-    <div style="display:flex;flex-direction:column;gap:8px" id="lista-ovulacoes"></div>
+  <div id="bloco-lembretes" style="display:none;margin-bottom:16px">
+    <p style="font-size:13px;font-weight:500;color:var(--text-secondary);margin:0 0 8px">🔔 Lembretes</p>
+    <div style="display:flex;flex-direction:column;gap:8px" id="lista-lembretes"></div>
   </div>
   <div id="bloco-inducoes" style="display:none;margin-bottom:16px">
     <p style="font-size:13px;font-weight:500;color:var(--text-danger);margin:0 0 8px">⏰ Induções de ovulação ativas</p>
     <div style="display:flex;flex-direction:column;gap:8px" id="lista-inducoes"></div>
   </div>
-  <div id="bloco-lembretes" style="display:none;margin-bottom:16px">
-    <p style="font-size:13px;font-weight:500;color:var(--text-secondary);margin:0 0 8px">🔔 Lembretes</p>
-    <div style="display:flex;flex-direction:column;gap:8px" id="lista-lembretes"></div>
+  <div id="bloco-ovulacoes" style="display:none;margin-bottom:16px">
+    <p style="font-size:13px;font-weight:500;color:var(--text-accent);margin:0 0 8px">Ovulações ativas (contagem D)</p>
+    <div style="display:flex;flex-direction:column;gap:8px" id="lista-ovulacoes"></div>
   </div>
   <p style="font-size:13px;font-weight:500;color:var(--text-secondary);margin:0 0 8px">Próximos eventos - toque para abrir</p>
   <div style="display:flex;flex-direction:column;gap:8px" id="lista-eventos"></div>
@@ -1461,7 +1469,8 @@ function calcularLembretesVacinais(){
       proxima.setDate(proxima.getDate()+intervalo);
       const diffDias = Math.round((proxima-hoje)/(1000*60*60*24));
       if(diffDias<=14){
-        lembretes.push({animal:a.nome, propriedade:a.propriedade, nome:r.nome, dias:diffDias, atrasada:diffDias<0, tipo:"sanitario"});
+        lembretes.push({animal:a.nome, animalId:a.id, propriedade:a.propriedade, nome:r.nome, dias:diffDias, atrasada:diffDias<0, tipo:"sanitario",
+          chave:"san_"+a.id+"_"+r.nome+"_"+dataObjParaBR(proxima)});
       }
     });
   });
@@ -1485,7 +1494,8 @@ function calcularLembretesMedicacoes(){
       if(!r.lembrete){
         const diffDias = Math.round((dataBase-hoje)/umDiaMs);
         if(diffDias<=1){
-          lembretes.push({animal:a.nome, propriedade:a.propriedade, nome:nomeExibicao, dias:diffDias, atrasada:diffDias<0, tipo:"medicacao"});
+          lembretes.push({animal:a.nome, animalId:a.id, propriedade:a.propriedade, nome:nomeExibicao, dias:diffDias, atrasada:diffDias<0, tipo:"medicacao",
+            chave:"med_"+a.id+"_"+r.nome+"_"+r.data});
         }
       } else {
         const intervalo = intervalos[r.lembrete];
@@ -1498,7 +1508,8 @@ function calcularLembretesMedicacoes(){
         if(limiteDuracao && proxima > limiteDuracao) return;
         const diffDias = Math.round((proxima-hoje)/umDiaMs);
         if(diffDias<=1){
-          lembretes.push({animal:a.nome, propriedade:a.propriedade, nome:nomeExibicao, dias:diffDias, atrasada:diffDias<0, tipo:"medicacao"});
+          lembretes.push({animal:a.nome, animalId:a.id, propriedade:a.propriedade, nome:nomeExibicao, dias:diffDias, atrasada:diffDias<0, tipo:"medicacao",
+            chave:"med_"+a.id+"_"+r.nome+"_"+dataObjParaBR(proxima)});
         }
       }
     });
@@ -1506,44 +1517,103 @@ function calcularLembretesMedicacoes(){
   return lembretes;
 }
 function calcularLembretesSincHormonal(){
+  // Mostra apenas UM lembrete por protocolo (a próxima etapa pendente), em vez de
+  // um lembrete por dia/etapa - isso evitava repetição excessiva na área inicial.
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   const umDiaMs = 24*60*60*1000;
   const lembretes = [];
   protocolosSinc.forEach(p=>{
     const inicio = parseDataBR2(p.dataInicio);
     if(!inicio) return;
+    const etapas = [];
     (p.etapasE2||[]).forEach((dose,i)=>{
       const dataEtapa = new Date(inicio); dataEtapa.setDate(dataEtapa.getDate()+i);
-      const diffDias = Math.round((dataEtapa-hoje)/umDiaMs);
-      if(diffDias<=14){
-        lembretes.push({animal:p.animalNome, propriedade:p.propriedade, nome:"E2 "+dose+" (dia "+(i+1)+")", dias:diffDias, atrasada:diffDias<0, tipo:"sincronizacao"});
-      }
+      etapas.push({nome:"E2 "+dose+" (dia "+(i+1)+")", data:dataEtapa, chaveSufixo:"e2_"+i});
     });
     const dataP4 = parseDataBR2(p.d0);
     if(dataP4){
-      const diffDiasP4 = Math.round((dataP4-hoje)/umDiaMs);
-      if(diffDiasP4<=14){
-        const label = p.p4Tipo==="implante" ? "Colocar implante de P4 (D0)" : "Aplicar P4 injetável (D0)";
-        lembretes.push({animal:p.animalNome, propriedade:p.propriedade, nome:label, dias:diffDiasP4, atrasada:diffDiasP4<0, tipo:"sincronizacao"});
-      }
+      const label = p.p4Tipo==="implante" ? "Colocar implante de P4 (D0)" : "Aplicar P4 injetável (D0)";
+      etapas.push({nome:label, data:dataP4, chaveSufixo:"p4"});
     }
+    if(!etapas.length) return;
+    etapas.forEach(e=>{ e.dias = Math.round((e.data-hoje)/umDiaMs); });
+    const futuras = etapas.filter(e=>e.dias>=0).sort((a,b)=>a.dias-b.dias);
+    const alvo = futuras.length ? futuras[0] : etapas.slice().sort((a,b)=>b.dias-a.dias)[0];
+    if(!alvo || alvo.dias>14) return;
+    const restantes = futuras.length;
+    const sufixoRestantes = restantes>1 ? (" · +"+(restantes-1)+" etapa"+(restantes-1===1?"":"s")+" depois") : "";
+    lembretes.push({animal:p.animalNome, animalId:p.animalId, propriedade:p.propriedade, nome:alvo.nome+sufixoRestantes, dias:alvo.dias, atrasada:alvo.dias<0, tipo:"sincronizacao",
+      chave:"sinc_"+p.id+"_"+alvo.chaveSufixo});
   });
   return lembretes;
 }
 const ROTULO_TIPO_LEMBRETE = {sanitario:"🛡️ Manejo sanitário", medicacao:"💊 Medicação", sincronizacao:"🧬 Sincronização hormonal"};
+function dataObjParaBR(d){
+  return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear();
+}
+function lembretesDispensadosGet(){
+  try{ return JSON.parse(localStorage.getItem("equibr_lembretes_dispensados")||"[]"); } catch(e){ return []; }
+}
+function lembreteDispensar(chave){
+  try{
+    const lista = lembretesDispensadosGet();
+    if(lista.indexOf(chave)===-1){
+      lista.push(chave);
+      localStorage.setItem("equibr_lembretes_dispensados", JSON.stringify(lista.slice(-300)));
+    }
+  } catch(e){ /* localStorage indisponível, ignora */ }
+}
+let lembretesAtuais = [];
 function renderLembretes(){
-  const lembretes = calcularLembretesVacinais().concat(calcularLembretesMedicacoes()).concat(calcularLembretesSincHormonal()).sort((a,b)=>a.dias-b.dias);
+  const dispensados = lembretesDispensadosGet();
+  lembretesAtuais = calcularLembretesVacinais().concat(calcularLembretesMedicacoes()).concat(calcularLembretesSincHormonal())
+    .filter(l=>dispensados.indexOf(l.chave)===-1)
+    .sort((a,b)=>a.dias-b.dias);
   const bloco = document.getElementById("bloco-lembretes");
-  if(!lembretes.length){ bloco.style.display="none"; return; }
+  if(!lembretesAtuais.length){ bloco.style.display="none"; return; }
   bloco.style.display="block";
-  document.getElementById("lista-lembretes").innerHTML = lembretes.map(l=>{
+  // Agrupa por propriedade para não ficar repetitivo (principalmente na sincronização
+  // hormonal, que antes mostrava uma linha por animal/etapa misturada com tudo). A ordem
+  // dos grupos segue a urgência (grupo do item mais urgente aparece primeiro), já que
+  // lembretesAtuais está ordenado por "dias" crescente.
+  const gruposOrdem = [];
+  const gruposMapa = {};
+  lembretesAtuais.forEach((l,i)=>{
     const propL = l.propriedade ? propriedades.find(p=>p.id===l.propriedade) : null;
-    const animalPropTxt = l.animal + (propL ? " · "+propL.nome : "");
-    return '<div style="background:'+(l.atrasada?"var(--bg-danger)":"var(--bg-accent)")+';border-radius:10px;padding:10px 12px">'+
-    '<p style="font-size:11px;font-weight:500;margin:0 0 2px;color:'+(l.atrasada?"var(--text-danger)":"var(--text-accent)")+'">'+(ROTULO_TIPO_LEMBRETE[l.tipo]||"🔔 Lembrete")+(l.atrasada?" · atrasada":"")+'</p>'+
-    '<p style="font-size:13px;font-weight:500;margin:0 0 2px;color:var(--text-primary)">'+l.nome+'</p>'+
-    '<p style="font-size:12px;color:var(--text-secondary);margin:0">'+animalPropTxt+' - '+(l.atrasada?("há "+Math.abs(l.dias)+" dias"):(l.dias===0?"hoje":("em "+l.dias+" dias")))+'</p></div>';
-  }).join("");
+    const nomeGrupo = propL ? propL.nome : "Sem propriedade";
+    if(!gruposMapa[nomeGrupo]){ gruposMapa[nomeGrupo] = []; gruposOrdem.push(nomeGrupo); }
+    gruposMapa[nomeGrupo].push(i);
+  });
+  document.getElementById("lista-lembretes").innerHTML = gruposOrdem.map(nomeGrupo=>{
+    const itensHtml = gruposMapa[nomeGrupo].map(i=>{
+      const l = lembretesAtuais[i];
+      return '<div style="background:'+(l.atrasada?"var(--bg-danger)":"var(--bg-accent)")+';border-radius:10px;padding:10px 12px">'+
+      '<div onclick="abrirLembrete('+i+')" style="cursor:pointer">'+
+      '<p style="font-size:11px;font-weight:500;margin:0 0 2px;color:'+(l.atrasada?"var(--text-danger)":"var(--text-accent)")+'">'+(ROTULO_TIPO_LEMBRETE[l.tipo]||"🔔 Lembrete")+(l.atrasada?" · atrasada":"")+'</p>'+
+      '<p style="font-size:13px;font-weight:500;margin:0 0 2px;color:var(--text-primary)">'+l.animal+'</p>'+
+      '<p style="font-size:12px;color:var(--text-secondary);margin:0">'+l.nome+' - '+(l.atrasada?("há "+Math.abs(l.dias)+" dias"):(l.dias===0?"hoje":("em "+l.dias+" dias")))+'</p>'+
+      '</div>'+
+      '<div style="display:flex;justify-content:flex-end;margin-top:4px">'+
+      '<span onclick="dispensarLembrete('+i+',event)" style="cursor:pointer;color:var(--text-muted);font-size:11px">🗑️ Dispensar</span>'+
+      '</div></div>';
+    }).join("");
+    return '<div style="margin-bottom:2px">'+
+    '<p style="font-size:11px;font-weight:600;color:var(--text-muted);margin:0 0 6px;text-transform:uppercase;letter-spacing:0.3px">📍 '+nomeGrupo+'</p>'+
+    '<div style="display:flex;flex-direction:column;gap:8px">'+itensHtml+'</div>'+
+    '</div>';
+  }).join("<div style=\"height:10px\"></div>");
+}
+function abrirLembrete(i){
+  const l = lembretesAtuais[i];
+  if(l && l.animalId) abrirPerfil(l.animalId);
+}
+function dispensarLembrete(i, ev){
+  if(ev) ev.stopPropagation();
+  const l = lembretesAtuais[i];
+  if(!l) return;
+  lembreteDispensar(l.chave);
+  renderLembretes();
+  atualizarContadorEventosHoje();
 }
 function renderEventos(){
   const retornosHtml = retornos.map((r,i)=>{
@@ -1631,6 +1701,22 @@ async function excluirNotificacaoInducao(idx, ev){
   if(ind && ind.id) await offlineDelete("inducoes", ind.id);
   inducoes.splice(idx,1);
   renderInducoes();
+}
+function atualizarContadorEventosHoje(){
+  const hojeBR = dataHojeBR();
+  const nEventosHoje = retornos.filter(r=>r.data===hojeBR).length
+    + lembretesAtuais.filter(l=>l.dias<=0).length
+    + inducoes.length
+    + eventos.filter(ev=>ev.quando==="hoje").length;
+  const elEventos = document.getElementById("count-eventos-hoje");
+  if(elEventos) elEventos.textContent = nEventosHoje;
+  const elLembretes = document.getElementById("count-lembretes-ativos");
+  if(elLembretes) elLembretes.textContent = lembretesAtuais.length;
+}
+function atualizarContadorGestantes(){
+  const n = animais.filter(a=>a.gestante).length;
+  const el = document.getElementById("count-gestantes");
+  if(el) el.textContent = n;
 }
 function renderListaPropriedades(containerId, modo){
   document.getElementById("count-propriedades").textContent = propriedades.length;
@@ -2144,7 +2230,18 @@ async function salvarAtendimento(){
           });
         }
       } else {
-        if(uid){
+        // Evita duplicar: se este animal já tem outro protocolo de sincronização
+        // hormonal em andamento (D0 ainda não passou), não cria um novo - os
+        // lembretes já estão programados desde o início desse protocolo. Isso
+        // acontecia quando, no atendimento do dia seguinte (2ª aplicação), a opção
+        // "Sincronização hormonal" era marcada de novo.
+        const protocoloAtivoOutro = protocolosSinc.find(p=>
+          p.animalId===estado.animal.id && p.origemHistoricoId!==historicoDbId &&
+          dataParaOrdenacao(p.d0) >= dataParaOrdenacao(dataHojeBR())
+        );
+        if(protocoloAtivoOutro){
+          alert("Este animal já tem um protocolo de sincronização hormonal em andamento (iniciado em "+protocoloAtivoOutro.dataInicio+", D0 em "+protocoloAtivoOutro.d0+"). Os lembretes já estão programados, então não é preciso marcar \"Sincronização hormonal\" de novo neste atendimento.");
+        } else if(uid){
           const novoId = gerarUUID();
           await offlineInsert("protocolos_sinc", {
             id:novoId, user_id:uid, animal_id:dadosProt.animalId, animal_nome:dadosProt.animalNome, propriedade_id:dadosProt.propriedade,
@@ -2152,8 +2249,8 @@ async function salvarAtendimento(){
             origem_historico_id:historicoDbId
           });
           dadosProt.id = novoId;
+          protocolosSinc.unshift(dadosProt);
         }
-        protocolosSinc.unshift(dadosProt);
       }
     } else if(protExistente){
       if(protExistente.id) await offlineDelete("protocolos_sinc", protExistente.id);
@@ -2292,6 +2389,7 @@ async function salvarPropriedade(){
   else { abrirPropriedadeGerenciar(id); }
 }
 function setPropTab(tab){
+  estado.propTabAtual = tab;
   const tabs = ["resultados","gestacoes","coberturas","lavados","financeiro","dados"];
   tabs.forEach(t=>{
     document.getElementById("prop-tab-"+t).style.display = t===tab ? "block":"none";
@@ -3393,7 +3491,7 @@ function renderMedicacoes(animalId){
   const listaOrdenada = ordenarIndicesPorDataDesc(lista, r=>r.data);
   document.getElementById("med-lista").innerHTML = listaOrdenada.map(function(par){
     const r = par.item, i = par.i;
-    return '<div style="background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
+    return '<div onclick="editarMedicacao(\''+animalId+'\','+i+')" style="cursor:pointer;background:var(--surface-1);border-radius:10px;padding:10px 12px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">'+
     '<span style="font-size:13px;font-weight:500">'+r.nome+(r.dose?(' - '+r.dose):'')+'</span>'+
     '<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--text-muted)">'+r.data+'</span>'+
@@ -3415,12 +3513,25 @@ function abrirMedicacoes(){
   setView("medicacoes");
 }
 function prepCadastroMedicacao(){
+  estado.medicacaoEditando = null;
   document.getElementById("med-nome").value = "";
   document.getElementById("med-dose").value = "";
   document.getElementById("med-data").value = "";
   document.getElementById("med-lembrete").value = "";
   document.getElementById("med-duracao").value = "";
   document.getElementById("med-obs").value = "";
+  setView("cadastro-medicacao");
+}
+function editarMedicacao(animalId, idx){
+  const r = (medicacoes[animalId]||[])[idx];
+  if(!r) return;
+  estado.medicacaoEditando = {animalId:animalId, idx:idx};
+  document.getElementById("med-nome").value = r.nome || "";
+  document.getElementById("med-dose").value = r.dose || "";
+  document.getElementById("med-data").value = dataBRparaISO(r.data) || "";
+  document.getElementById("med-lembrete").value = r.lembrete || "";
+  document.getElementById("med-duracao").value = r.duracaoDias || "";
+  document.getElementById("med-obs").value = r.obs || "";
   setView("cadastro-medicacao");
 }
 async function salvarMedicacao(){
@@ -3434,6 +3545,23 @@ async function salvarMedicacao(){
   const duracaoInput = document.getElementById("med-duracao").value;
   const duracaoDias = duracaoInput ? (parseInt(duracaoInput,10)||null) : null;
   const obs = document.getElementById("med-obs").value;
+  if(estado.medicacaoEditando){
+    const { animalId, idx } = estado.medicacaoEditando;
+    const existente = (medicacoes[animalId]||[])[idx];
+    if(existente){
+      existente.nome = nome; existente.dose = dose; existente.data = data;
+      existente.lembrete = lembrete; existente.duracaoDias = duracaoDias; existente.obs = obs;
+      if(existente.id){
+        await offlineUpdate("medicacoes", existente.id, {
+          nome:nome, dose:dose, data:data, lembrete:lembrete, duracao_dias:duracaoDias, obs:obs
+        });
+      }
+    }
+    estado.medicacaoEditando = null;
+    renderMedicacoes(animalId);
+    voltar();
+    return;
+  }
   if(!medicacoes[id]) medicacoes[id] = [];
   const novo = {nome:nome, dose:dose, data:data, lembrete:lembrete, duracaoDias:duracaoDias, obs:obs};
   if(usuarioAtualId){
@@ -4899,7 +5027,7 @@ function setView(name){
   document.getElementById("btn-back").style.display = (name==="dashboard"||name==="login"||(name==="meus-dados" && estado.cadastroObrigatorio)) ? "none":"inline";
   document.getElementById("header-logo").style.display = name==="dashboard" ? "inline-block":"none";
   document.getElementById("btn-header-add").style.display = name==="atender" ? "flex":"none";
-  if(name==="dashboard"){ renderLembretes(); renderInducoes(); renderEventos(); renderOvulacoes(); }
+  if(name==="dashboard"){ renderLembretes(); renderInducoes(); renderEventos(); renderOvulacoes(); atualizarContadorEventosHoje(); atualizarContadorGestantes(); }
   if(name==="animais") renderAnimais();
   if(name==="propriedades") renderListaPropriedades("lista-propriedades-manage","manage");
   if(name==="atender") renderListaPropriedades("lista-propriedades-atender","atender");
@@ -4929,7 +5057,8 @@ function salvarEstadoNavegacao(name){
     localStorage.setItem("equibr_ultima_tela", JSON.stringify({
       view: name,
       propriedadeId: estado.propriedadeEditando || null,
-      animalId: estado.animal ? estado.animal.id : null
+      animalId: estado.animal ? estado.animal.id : null,
+      propTab: estado.propTabAtual || null
     }));
   } catch(e){ /* localStorage indisponível, ignora */ }
 }
@@ -4942,7 +5071,7 @@ function restaurarEstadoNavegacao(){
   const animalOk = salvo.animalId && animais.find(a=>a.id===salvo.animalId);
   try{
     // Telas que dá pra reconstruir exatamente
-    if(view==="propriedade-detalhes" && propOk){ abrirPropriedadeGerenciar(salvo.propriedadeId); return true; }
+    if(view==="propriedade-detalhes" && propOk){ abrirPropriedadeGerenciar(salvo.propriedadeId); if(salvo.propTab){ setPropTab(salvo.propTab); } return true; }
     if(view==="perfil" && animalOk){ abrirPerfil(salvo.animalId); return true; }
     if(view==="animais" && propOk){ abrirPropriedadeAtender(salvo.propriedadeId); return true; }
 
@@ -5307,6 +5436,12 @@ async function restaurarSessaoOffline(){
   if(!restaurarEstadoNavegacao()){ setView("dashboard"); }
   return true;
 }
+function comTimeout(promessa, ms){
+  return Promise.race([
+    promessa,
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error("tempo esgotado")), ms))
+  ]);
+}
 (async function iniciarApp(){
   await abrirIndexedDB();
   try{ if(navigator.storage && navigator.storage.persist){ await navigator.storage.persist(); } } catch(e){ /* nem todo navegador suporta, segue normal */ }
@@ -5318,43 +5453,49 @@ async function restaurarSessaoOffline(){
     history.replaceState(null, "", window.location.pathname);
   }
 
-  // Sem conexão: usa direto o que já está salvo neste aparelho, sem depender do SDK
-  // do Supabase (que pode demorar ou se comportar de forma inconsistente tentando
-  // renovar a sessão pela rede quando não há sinal nenhum).
-  if(!navigator.onLine){
-    if(await restaurarSessaoOffline()){
-      tentarSincronizar();
-      return;
-    }
-    // nada salvo neste aparelho ainda: segue o fluxo normal abaixo
+  // Local-first: SEMPRE tenta mostrar primeiro o que já está salvo neste aparelho,
+  // sem esperar a rede. Isso evita o app ficar travado/sem abrir em local de sinal
+  // fraco, onde navigator.onLine pode estar "true" mesmo sem internet de verdade
+  // (o navegador só sabe que há uma rede, não que ela funciona).
+  const tinhaCache = await restaurarSessaoOffline();
+  if(tinhaCache){
+    tentarSincronizar();
+    // Em segundo plano, com um tempo limite curto, tenta confirmar/atualizar a
+    // sessão e os dados pela rede. Se demorar demais (sinal fraco) ou falhar,
+    // simplesmente continua com o que já está na tela - nunca trava a tela por isso.
+    (async ()=>{
+      if(!navigator.onLine) return;
+      try{
+        const resultado = await comTimeout(supabaseClient.auth.getSession(), 6000);
+        const session = resultado.data.session;
+        if(session){
+          usuarioAtualId = session.user.id;
+          await comTimeout(carregarPerfilUsuario(usuarioAtualId), 8000);
+          await comTimeout(carregarDadosIniciais(), 8000);
+          atualizarIndicadorSync();
+          if(estado.pilha[estado.pilha.length-1]==="dashboard"){ renderLembretes(); renderInducoes(); renderEventos(); renderOvulacoes(); atualizarContadorEventosHoje(); atualizarContadorGestantes(); }
+        }
+      } catch(e){ /* sinal fraco/instável: mantém os dados já exibidos do cache */ }
+    })();
+    return;
   }
 
+  // Nada salvo neste aparelho ainda (primeiro acesso): não tem cache pra mostrar,
+  // então precisa mesmo esperar a rede - mas com um tempo limite, pra nunca travar
+  // pra sempre numa tela em branco.
   let session = null;
   try{
-    const resultado = await supabaseClient.auth.getSession();
+    const resultado = await comTimeout(supabaseClient.auth.getSession(), 15000);
     session = resultado.data.session;
-  } catch(e){ /* provavelmente offline na primeira checagem de sessão */ }
+  } catch(e){ /* sem resposta da rede a tempo */ }
   if(session){
     usuarioAtualId = session.user.id;
-    let carregouOk = false;
     try{
       await carregarPerfilUsuario(session.user.id);
       await carregarDadosIniciais();
-      carregouOk = true;
+      irAppPosLogin();
     } catch(e){
       console.error("Sessão válida, mas houve erro ao carregar dados:", e);
-    }
-    if(carregouOk){
-      if(navigator.onLine){
-        irAppPosLogin();
-      } else {
-        // Offline: não há como confirmar a assinatura agora, então mostra o
-        // dashboard com os dados já salvos localmente em vez de bloquear o acesso.
-        estado.pilha = ["dashboard"];
-        setNavAtivo("dashboard");
-        if(!restaurarEstadoNavegacao()){ setView("dashboard"); }
-      }
-    } else if(!(await restaurarSessaoOffline())){
       estado.pilha = ["dashboard"];
       setNavAtivo("dashboard");
       setView("dashboard");
@@ -5362,25 +5503,7 @@ async function restaurarSessaoOffline(){
     tentarSincronizar();
     return;
   }
-  if(await restaurarSessaoOffline()){
-    // se a internet estiver de fato disponível (só a checagem de sessão que falhou por
-    // instabilidade), tenta recuperar a sessão online e sincronizar em segundo plano
-    tentarSincronizar();
-    setTimeout(async ()=>{
-      if(!navigator.onLine) return;
-      try{
-        const resultado2 = await supabaseClient.auth.getSession();
-        if(resultado2.data.session){
-          usuarioAtualId = resultado2.data.session.user.id;
-          await carregarPerfilUsuario(usuarioAtualId);
-          await carregarDadosIniciais();
-          atualizarIndicadorSync();
-        }
-      } catch(e){ /* continua com os dados em cache */ }
-    }, 1500);
-  } else {
-    setView("login");
-  }
+  setView("login");
 })();
 
 if("serviceWorker" in navigator){
